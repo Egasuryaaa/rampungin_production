@@ -38,11 +38,12 @@ router.get('/transactions/:transaksi_id', clientController.getTransactionDetail)
 // 15. CANCEL TRANSACTION
 router.put('/transactions/:transaksi_id/cancel', clientController.cancelTransaction);
 
-// 16. REQUEST TOP-UP
-router.post('/topup', uploadTopup.single('bukti_pembayaran'), clientController.requestTopup);
-
-// 17. GET TOP-UP HISTORY
-router.get('/topup', clientController.getTopupHistory);
+// 16. REQUEST TOP-UP (POST)
+// 17. GET TOP-UP HISTORY (GET)
+// Kedua endpoint menggunakan path yang sama: /topup
+router.route('/topup')
+  .post(uploadTopup.single('bukti_pembayaran'), clientController.requestTopup)
+  .get(clientController.getTopupHistory);
 
 // 18. SUBMIT RATING
 router.post('/rating', clientController.submitRating);

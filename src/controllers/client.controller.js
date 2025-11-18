@@ -21,18 +21,33 @@ const deleteOldFile = (dbPath) => {
 exports.getClientProfile = async (req, res) => {
   try {
     // Data user sudah ada di req.user dari middleware verifyToken
-    // Kita hanya perlu menghapus password sebelum mengirim
-    const user = req.user;
-    delete user.password;
-    delete user.id_role; // Hapus jika ada, ganti dengan objek 'role'
-
+    const user = { ...req.user };
+    
+    // Hapus data sensitif
+    delete user.password_hash;
+    
+    // Format response dengan role yang benar
     const data = {
-      ...user,
-      role: {
-        id: user.role,
-        name: user.role.toLowerCase(),
-        description: user.role
-      }
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      no_telp: user.no_telp,
+      nama_lengkap: user.nama_lengkap,
+      foto_profil: user.foto_profil,
+      alamat: user.alamat,
+      kota: user.kota,
+      provinsi: user.provinsi,
+      kode_pos: user.kode_pos,
+      poin: user.poin,
+      is_active: user.is_active,
+      is_verified: user.is_verified,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      role: user.roles ? {
+        id: user.roles.id,
+        name: user.roles.name,
+        description: user.roles.description
+      } : null
     };
 
     sendResponse(res, 200, 'success', 'Data profil berhasil diambil', data);

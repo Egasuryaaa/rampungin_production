@@ -45,11 +45,12 @@ router.put('/orders/:transaksi_id/confirm-tunai', tukangController.confirmTunaiP
 // 31. GET RATINGS
 router.get('/ratings', tukangController.getRatings);
 
-// 32. REQUEST WITHDRAWAL
-router.post('/withdrawal', tukangController.requestWithdrawal);
-
-// 33. GET WITHDRAWAL HISTORY
-router.get('/withdrawal', tukangController.getWithdrawalHistory);
+// 32. REQUEST WITHDRAWAL (POST)
+// 33. GET WITHDRAWAL HISTORY (GET)
+// Kedua endpoint menggunakan path yang sama: /withdrawal
+router.route('/withdrawal')
+  .post(tukangController.requestWithdrawal)
+  .get(tukangController.getWithdrawalHistory);
 
 // 34. GET TUKANG STATISTICS
 router.get('/statistics', tukangController.getTukangStatistics);

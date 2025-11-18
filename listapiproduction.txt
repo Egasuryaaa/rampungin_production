@@ -1,30 +1,92 @@
-# Dokumentasi API - Rampungin (Production)
+================================================================================
+                    RAMPUNGIN.ID - LIST API ENDPOINTS
+                    Backend: Node.js Express + PostgreSQL (Prisma ORM)
+                    Base URL: http://localhost:3000
+                    Authentication: JWT Bearer Token
+                    Last Updated: November 18, 2025
+================================================================================
 
-Dokumen ini merangkum endpoint API yang ada pada repository. Format untuk setiap endpoint:
+📅 CHANGELOG:
+- 18 Nov 2025: Migrated from CodeIgniter 4 to Node.js Express + Prisma
+- 18 Nov 2025: Fixed kategori_tukang duplicate in getTukangDetail endpoint
+- 18 Nov 2025: Added comprehensive cURL examples for all endpoints
+- 14 Nov 2025: Added GET /api/tukang/categories endpoint for tukang users
+- 12 Nov 2025: Added "kategori" field to Browse Tukang & Search Tukang endpoints
+- 10 Nov 2025: Fixed upload foto system with proper URL handling
 
-- [METHOD] `/api/[path]`
-	Deskripsi: (penjelasan singkat)
-	Authentication: Public atau Protected (JWT diperlukan)
-	Contoh Request Body: (hanya untuk POST/PUT)
-	JSON
-	{
-		"field1": "contoh_data",
-		"field2": 123
-	}
-	Contoh Success Response (200 OK):
-	JSON
-	{
-		"status": "success",
-		"message": "Pesan sukses...",
-		"data": { ... }
-	}
+DAFTAR ISI:
+1. AUTH ENDPOINTS (5 endpoints)
+   - Register, Login, Logout, Get Current User, Change Password
+   
+2. CLIENT ENDPOINTS (14 endpoints)
+   - Profile Management (2)
+   - Browse & Search Tukang (4)
+   - Booking & Transactions (5)
+   - Top-up POIN (2)
+   - Rating & Statistics (2)
+   
+3. TUKANG ENDPOINTS (15 endpoints)
+   - Profile Management (3)
+   - Categories (1)
+   - Order Management (7)
+   - Ratings & Reviews (1)
+   - Withdrawal (2)
+   - Statistics (1)
 
-Catatan:
-- Semua path di bawah menggunakan prefix base `/api` (mis. route `/auth/register` => `/api/auth/register`).
-- Untuk endpoint yang menerima file upload (foto_profil, bukti_pembayaran) gunakan form-data multipart.
-- Protected = membutuhkan header `Authorization: Bearer <token>` yang dihasilkan dari `/api/auth/login`.
+================================================================================
 
----
+📝 IMPORTANT NOTES:
+================================================================================
+✅ Semua response dalam format JSON standar:
+   {
+     "status": "success" | "error",
+     "message": "Pesan deskriptif",
+     "data": { ... } | null
+   }
+ 
+✅ Authentication menggunakan JWT Bearer Token:
+   - Header: Authorization: Bearer {your_token_here}
+   - Token didapat dari endpoint /api/auth/login
+   - Token valid selama waktu yang ditentukan di JWT_EXPIRES_IN (.env)
+   - Token akan masuk blacklist setelah logout
+
+✅ HTTP Methods:
+   - GET: Mengambil data
+   - POST: Membuat data baru
+   - PUT: Update data (bisa diganti POST jika client tidak support)
+   - DELETE: Menghapus data
+
+✅ Error Codes:
+   - 200: Success
+   - 201: Created (resource berhasil dibuat)
+   - 400: Bad Request (validasi gagal)
+   - 401: Unauthorized (token tidak valid/kadaluarsa)
+   - 403: Forbidden (role tidak sesuai)
+   - 404: Not Found
+   - 409: Conflict (data duplikat, misal username sudah ada)
+   - 422: Unprocessable Entity (validasi error)
+   - 500: Internal Server Error
+
+✅ Dual Payment System:
+   POIN (QRIS Digital):
+   - Client top-up via QRIS → verifikasi admin → saldo masuk
+   - Saat booking, poin auto-deduct dari client
+   - Setelah selesai, poin transfer ke tukang
+   - Tukang bisa withdrawal ke bank (min 50k, fee 2%)
+   
+   TUNAI (Cash on Service):
+   - Tidak perlu top-up
+   - Langsung booking tanpa potong poin
+   - Bayar cash ke tukang setelah pekerjaan selesai
+   - Tukang konfirmasi pembayaran via app
+
+✅ File Upload:
+   - Foto Profil: max 2MB, format JPG/JPEG/PNG
+   - Bukti Pembayaran: max 2MB, format JPG/JPEG/PNG/PDF
+   - Path penyimpanan: writable/profiles/ & writable/topup/
+   - URL akses: http://localhost:3000/uploads/profiles/filename.jpg
+
+================================================================================---
 
 ## auth.routes.js
 
