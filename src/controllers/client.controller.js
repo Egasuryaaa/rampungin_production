@@ -238,11 +238,14 @@ exports.getTukangDetail = async (req, res) => {
       bintang_1: starCounts.find(s => s.rating === 1)?._count.rating || 0,
     };
 
+    // Ambil kategori yang bersih (tanpa duplikasi)
+    const kategoriList = user.kategori_tukang.map(kt => kt.kategori);
+
     // Format data gabungan
     const data = {
       ...user,
       profil_tukang: user.profil_tukang,
-      kategori: user.kategori_tukang.map(kt => kt.kategori),
+      kategori: kategoriList,
       ratings: ratings.map(r => ({
         ...r,
         nama_client: r.users_rating_client_idTousers.nama_lengkap,
@@ -250,7 +253,10 @@ exports.getTukangDetail = async (req, res) => {
       })),
       rating_stats,
     };
+    
+    // Hapus data sensitif dan field yang tidak perlu
     delete data.password_hash;
+    delete data.kategori_tukang;
 
     sendResponse(res, 200, 'success', 'Detail tukang berhasil diambil', data);
   } catch (error) {

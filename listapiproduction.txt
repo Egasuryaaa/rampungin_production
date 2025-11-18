@@ -1,0 +1,1195 @@
+# Dokumentasi API - Rampungin (Production)
+
+Dokumen ini merangkum endpoint API yang ada pada repository. Format untuk setiap endpoint:
+
+- [METHOD] `/api/[path]`
+	Deskripsi: (penjelasan singkat)
+	Authentication: Public atau Protected (JWT diperlukan)
+	Contoh Request Body: (hanya untuk POST/PUT)
+	JSON
+	{
+		"field1": "contoh_data",
+		"field2": 123
+	}
+	Contoh Success Response (200 OK):
+	JSON
+	{
+		"status": "success",
+		"message": "Pesan sukses...",
+		"data": { ... }
+	}
+
+Catatan:
+- Semua path di bawah menggunakan prefix base `/api` (mis. route `/auth/register` => `/api/auth/register`).
+- Untuk endpoint yang menerima file upload (foto_profil, bukti_pembayaran) gunakan form-data multipart.
+- Protected = membutuhkan header `Authorization: Bearer <token>` yang dihasilkan dari `/api/auth/login`.
+
+---
+
+## auth.routes.js
+
+[POST] /api/auth/register
+Deskripsi: Mendaftarkan user baru. Bisa mendaftar sebagai `client` atau `tukang`. Jika `tukang`, dibuat juga profil tukang dan kategori jika diberikan.
+Authentication: Public
+Contoh Request Body (form-data - `foto_profil` optional):
+JSON
+{
+	"username": "johndoe",
+	"email": "john@example.com",
+	"password": "secret123",
+	"nama_lengkap": "John Doe",
+	"no_telp": "08123456789",
+	"role": "tukang",          // 'client' atau 'tukang'
+	"alamat": "...",
+	"kota": "Jakarta",
+	"provinsi": "DKI Jakarta",
+	"kode_pos": "12345",
+
+	// Jika role = tukang (opsional untuk client)
+	"pengalaman_tahun": 3,
+	"tarif_per_jam": 75000,
+	"bio": "...",
+	"keahlian": ["listrik", "plumbing"],
+	"kategori_ids": [1,2],
+	"nama_bank": "BCA",
+	"nomor_rekening": "1234567890",
+	"nama_pemilik_rekening": "John Doe"
+}
+Contoh Success Response (201 Created):
+JSON
+{
+	"status": "success",
+	"message": "Registrasi berhasil",
+	"data": {
+		"user_id": 12,
+		"username": "johndoe",
+		"email": "john@example.com",
+		"role": "tukang",
+		"foto_profil": "uploads/profiles/..jpg",
+		"is_verified": false
+	}
+}
+
+[POST] /api/auth/login
+Deskripsi: Login menggunakan `username` atau `email` dan `password`. Mengembalikan JWT dan data user + role.
+Authentication: Public
+Contoh Request Body (JSON):
+JSON
+{
+	"username": "johndoe",   // atau gunakan "email": "john@example.com"
+	"password": "secret123"
+}
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Login berhasil",
+	"data": {
+		"token": "<jwt_token>",
+		"user": {
+			"id": 12,
+			"username": "johndoe",
+			"email": "john@example.com",
+			"nama_lengkap": "John Doe",
+			"foto_profil": "uploads/profiles/..jpg",
+			"poin": 0,
+			"is_active": true,
+			"is_verified": false,
+			"id_role": 3
+		},
+		"role": {
+			"id": 3,
+			"name": "tukang",
+			"description": null
+		}
+	}
+}
+
+[POST] /api/auth/logout
+Deskripsi: Logout — menambahkan token saat ini ke blacklist.
+Authentication: Protected (JWT required)
+Contoh Request Body: - (tidak ada)
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Logout berhasil",
+	"data": null
+}
+
+[GET] /api/auth/me
+Deskripsi: Ambil data user saat ini (dari token). Mengembalikan user + role.
+Authentication: Protected (JWT required)
+Contoh Request Body: -
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Data user berhasil diambil",
+	"data": {
+		"id": 12,
+		"username": "johndoe",
+		"email": "john@example.com",
+		"nama_lengkap": "John Doe",
+		"foto_profil": "uploads/profiles/..jpg",
+		"poin": 0,
+		"is_active": true,
+		"is_verified": false,
+		"roles": { "id": 3, "name": "tukang", "description": null }
+	}
+}
+
+[POST] /api/auth/change-password
+Deskripsi: Ganti password. Memeriksa `old_password` lalu ubah ke `new_password` jika konfirmasi cocok.
+Authentication: Protected (JWT required)
+Contoh Request Body (JSON):
+JSON
+{
+	"old_password": "oldpass",
+	"new_password": "newpass123",
+	"confirm_password": "newpass123"
+}
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Password berhasil diubah",
+	"data": null
+}
+
+---
+
+## client.routes.js
+
+Catatan: Semua endpoint di file ini memiliki middleware `verifyToken` dan `isClient` — jadi Protected dan role harus `client`.
+
+[GET] /api/client/profile
+Deskripsi: Ambil profil client (data user yang sedang login).
+Authentication: Protected (JWT required) — role: client
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Data profil berhasil diambil",
+	"data": {
+		"id": 5,
+		"username": "client1",
+		"email": "c@example.com",
+		"nama_lengkap": "Client One",
+		"foto_profil": "uploads/profiles/..jpg",
+		"poin": 100,
+		"role": { "id": 2, "name": "client", "description": "..." }
+	}
+}
+
+[PUT] /api/client/profile
+Deskripsi: Update profil client (support JSON & multipart untuk foto_profil).
+Authentication: Protected (JWT required) — role: client
+Contoh Request Body (JSON or form-data):
+JSON
+{
+	"nama_lengkap": "Client Updated",
+	"no_telp": "081234...",
+	"alamat": "...",
+	"kota": "...",
+	"provinsi": "...",
+	"kode_pos": "..."
+	// file field: foto_profil (multipart/form-data)
+}
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Profil berhasil diperbarui",
+	"data": null
+}
+
+[GET] /api/client/categories
+Deskripsi: Ambil daftar kategori aktif beserta hitungan tukang per kategori.
+Authentication: Protected (JWT required) — role: client
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Data kategori berhasil diambil",
+	"data": [
+		{ "id": 1, "nama": "Listrik", "deskripsi": "...", "jumlah_tukang": 12 },
+		{ "id": 2, "nama": "AC", "deskripsi": "...", "jumlah_tukang": 8 }
+	]
+}
+
+[GET] /api/client/tukang
+Deskripsi: Browse tukang (filter & pagination via query string).
+Authentication: Protected (JWT required) — role: client
+Query params: `kategori_id`, `kota`, `status`, `min_rating`, `max_tarif`, `order_by`, `order_dir`, `limit`, `offset`
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Data tukang berhasil diambil",
+	"data": [
+		{
+			"id": 10,
+			"user_id": 7,
+			"nama_lengkap": "Tukang A",
+			"foto_profil": "uploads/profiles/..jpg",
+			"no_telp": "08...",
+			"kota": "Jakarta",
+			"profil_tukang": { "pengalaman_tahun": 2, "tarif_per_jam": 60000, "rata_rata_rating": 4.5 },
+			"kategori": [ {"id":1,"nama":"Listrik"} ]
+		}
+	]
+}
+
+[GET] /api/client/tukang/:tukang_id
+Deskripsi: Ambil detail tukang (profil lengkap, kategori, ratings, rating_stats).
+Authentication: Protected (JWT required) — role: client
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Detail tukang berhasil diambil",
+	"data": {
+		"id": 7,
+		"nama_lengkap": "Tukang A",
+		"profil_tukang": { "pengalaman_tahun": 2, "tarif_per_jam": 60000, "bio": "..." },
+		"kategori": [ {"id":1,"nama":"Listrik"} ],
+		"ratings": [ { "id": 3, "rating": 5, "ulasan": "Bagus", "nama_client": "Client1" } ],
+		"rating_stats": { "total": 10, "rata_rata": 4.6, "bintang_5": 6 }
+	}
+}
+
+[GET] /api/client/search-tukang
+Deskripsi: Cari tukang berdasarkan keyword dan optional filter `kategori_id`, `kota`.
+Authentication: Protected (JWT required) — role: client
+Query params: `keyword` (required), `kategori_id`, `kota`, `limit`, `offset`
+Contoh Success Response (200 OK): sama struktur seperti browse tukang.
+
+[POST] /api/client/booking
+Deskripsi: Membuat booking/transaksi baru.
+Authentication: Protected (JWT required) — role: client
+Contoh Request Body (JSON):
+JSON
+{
+	"tukang_id": 7,
+	"kategori_id": 1,
+	"judul_layanan": "Pasang Lampu",
+	"deskripsi_layanan": "...",
+	"lokasi_kerja": "Jl. Contoh",
+	"tanggal_jadwal": "2025-11-20",
+	"waktu_jadwal": "09:00",
+	"estimasi_durasi_jam": 2,
+	"harga_dasar": 150000,
+	"biaya_tambahan": 0,
+	"metode_pembayaran": "tunai" // atau 'poin'
+}
+Contoh Success Response (201 Created):
+JSON
+{
+	"status": "success",
+	"message": "Booking berhasil dibuat",
+	"data": {
+		"transaksi_id": 55,
+		"nomor_pesanan": "TRX-...",
+		"status": "pending",
+		"total_biaya": 150000,
+		"metode_pembayaran": "tunai",
+		"poin_terpotong": false
+	}
+}
+
+[GET] /api/client/transactions
+Deskripsi: Ambil daftar transaksi client (dengan filter & pagination).
+Authentication: Protected (JWT required) — role: client
+Query params: `status`, `metode_pembayaran`, `limit`, `offset`
+Contoh Success Response (200 OK): array transaksi dengan field seperti di model `transaksi` + nama_tukang, foto_tukang, nama_kategori.
+
+[GET] /api/client/transactions/:transaksi_id
+Deskripsi: Ambil detail transaksi milik client.
+Authentication: Protected (JWT required) — role: client
+Contoh Success Response (200 OK): transaksi lengkap + nama_tukang, foto_tukang, nama_kategori, rating jika ada.
+
+[PUT] /api/client/transactions/:transaksi_id/cancel
+Deskripsi: Batalkan transaksi oleh client (jika status sesuai).
+Authentication: Protected (JWT required) — role: client
+Contoh Request Body (JSON):
+JSON
+{
+	"alasan_pembatalan": "Perubahan rencana"
+}
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Transaksi berhasil dibatalkan",
+	"data": { "poinDikembalikan": 0 }
+}
+
+[POST] /api/client/topup
+Deskripsi: Mengajukan top-up saldo (upload `bukti_pembayaran`).
+Authentication: Protected (JWT required) — role: client
+Contoh Request Body (form-data):
+ - `jumlah` (field)
+ - `bukti_pembayaran` (file)
+Contoh Success Response (201 Created):
+JSON
+{
+	"status": "success",
+	"message": "Request top-up berhasil dibuat",
+	"data": { "topup_id": 10, "jumlah": 100000, "status": "pending", "kadaluarsa_pada": "..." }
+}
+
+[GET] /api/client/topup
+Deskripsi: Ambil riwayat top-up client.
+Authentication: Protected (JWT required) — role: client
+Contoh Success Response (200 OK): array of topup records (see `topup` model in prisma/schema.prisma).
+
+[POST] /api/client/rating
+Deskripsi: Submit rating untuk transaksi yang sudah selesai.
+Authentication: Protected (JWT required) — role: client
+Contoh Request Body (JSON):
+JSON
+{
+	"transaksi_id": 55,
+	"rating": 5,
+	"ulasan": "Pekerjaan rapi"
+}
+Contoh Success Response (201 Created):
+JSON
+{
+	"status": "success",
+	"message": "Rating berhasil diberikan",
+	"data": { "rating_id": 123, "transaksi_id": 55, "rating": 5 }
+}
+
+[GET] /api/client/statistics
+Deskripsi: Ambil statistik untuk client (transaksi, topup, saldo poin, rating diberikan).
+Authentication: Protected (JWT required) — role: client
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Statistik client berhasil diambil",
+	"data": {
+		"saldo_poin": 100,
+		"transaksi": { "total": 10, "pending": 1, "selesai": 7, "total_pengeluaran": 350000 },
+		"topup": { "total": 3, "berhasil": 2, "total_topup_berhasil": 200000 },
+		"rating_diberikan": 5
+	}
+}
+
+---
+
+## tukang.routes.js
+
+Catatan: Semua endpoint di file ini memiliki middleware `verifyToken` dan `isTukang` — jadi Protected dan role harus `tukang`.
+
+[GET] /api/tukang/profile
+Deskripsi: Ambil profil tukang (user + profil_tukang + kategori list).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Data profil tukang berhasil diambil",
+	"data": {
+		"id": 7,
+		"username": "tukangA",
+		"nama_lengkap": "Tukang A",
+		"foto_profil": "uploads/profiles/..jpg",
+		"profil_tukang": { "pengalaman_tahun": 2, "tarif_per_jam": 60000, "bio": "..." },
+		"kategori": [ {"id":1,"nama":"Listrik"} ]
+	}
+}
+
+[PUT] /api/tukang/profile
+Deskripsi: Update profil tukang (user fields, profil_tukang, kategori, foto_profil).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Request Body (JSON or form-data):
+JSON
+{
+	"nama_lengkap": "Tukang Updated",
+	"no_telp": "08...",
+	"alamat": "...",
+	"kota": "...",
+	"provinsi": "...",
+	"kode_pos": "...",
+	"pengalaman_tahun": 4,
+	"tarif_per_jam": 80000,
+	"radius_layanan_km": 15,
+	"bio": "...",
+	"keahlian": ["AC"],
+	"nama_bank": "BCA",
+	"nomor_rekening": "987654321",
+	"nama_pemilik_rekening": "Tukang A",
+	"kategori_ids": [1,3]
+	// file: foto_profil (multipart)
+}
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Profil berhasil diperbarui",
+	"data": null
+}
+
+[GET] /api/tukang/categories
+Deskripsi: Ambil daftar kategori aktif (sama seperti client/categories).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response: sama seperti client/categories.
+
+[PUT] /api/tukang/availability
+Deskripsi: Update status ketersediaan tukang (`tersedia` atau `tidak_tersedia`).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Request Body (JSON):
+JSON
+{
+	"status_ketersediaan": "tersedia"
+}
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Status ketersediaan berhasil diupdate",
+	"data": null
+}
+
+[GET] /api/tukang/orders
+Deskripsi: Ambil daftar order (pesanan) untuk tukang.
+Authentication: Protected (JWT required) — role: tukang
+Query params: `status`, `metode_pembayaran`, `limit`, `offset`
+Contoh Success Response (200 OK): array transaksi dengan nama_client, foto_client, no_telp_client, nama_kategori.
+
+[GET] /api/tukang/orders/:transaksi_id
+Deskripsi: Ambil detail order untuk tukang (jika memiliki transaksi tersebut).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response (200 OK): detail transaksi + data client.
+
+[PUT] /api/tukang/orders/:transaksi_id/accept
+Deskripsi: Tukang menerima order (mengubah status dari `pending` => `diterima`).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Request Body: -
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Pesanan berhasil diterima",
+	"data": null
+}
+
+[PUT] /api/tukang/orders/:transaksi_id/reject
+Deskripsi: Tukang menolak order (hanya untuk status `pending`).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Request Body (JSON):
+JSON
+{
+	"alasan_penolakan": "Alasan"
+}
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Pesanan berhasil ditolak",
+	"data": null
+}
+
+[PUT] /api/tukang/orders/:transaksi_id/start
+Deskripsi: Tukang memulai pekerjaan (status `diterima` => `dalam_proses`).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Pekerjaan berhasil dimulai",
+	"data": null
+}
+
+[PUT] /api/tukang/orders/:transaksi_id/complete
+Deskripsi: Tukang menyelesaikan pekerjaan (status `dalam_proses` => `selesai`).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Request Body (JSON):
+JSON
+{
+	"catatan_tukang": "Pekerjaan selesai dengan catatan..."
+}
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Pekerjaan berhasil diselesaikan",
+	"data": { "poinDiterima": 0 }
+}
+
+[PUT] /api/tukang/orders/:transaksi_id/confirm-tunai
+Deskripsi: Konfirmasi pembayaran tunai (menandai `sudah_dibayar_tunai`). Endpoint ini memeriksa `metode_pembayaran === 'tunai'`.
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Pembayaran tunai berhasil dikonfirmasi",
+	"data": null
+}
+
+[GET] /api/tukang/ratings
+Deskripsi: Ambil ratings untuk tukang beserta statistik (total, rata_rata, per-bintang).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Rating berhasil diambil",
+	"data": { "ratings": [/*...*/], "statistik": { "total_rating": 10, "rata_rata": 4.5 } }
+}
+
+[POST] /api/tukang/withdrawal
+Deskripsi: Request penarikan saldo (dari poin). Minimum penarikan 50,000.
+Authentication: Protected (JWT required) — role: tukang
+Contoh Request Body (JSON):
+JSON
+{
+	"jumlah": 100000,
+	"nama_bank": "BCA",
+	"nomor_rekening": "1234567890",
+	"nama_pemilik_rekening": "Tukang A"
+}
+Contoh Success Response (201 Created):
+JSON
+{
+	"status": "success",
+	"message": "Request penarikan berhasil dibuat",
+	"data": { "withdrawal_id": 5, "jumlah": 100000, "biaya_admin": 2000, "jumlah_bersih": 98000, "status": "pending" }
+}
+
+[GET] /api/tukang/withdrawal
+Deskripsi: Ambil riwayat penarikan tukang.
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response (200 OK): array of penarikan records.
+
+[GET] /api/tukang/statistics
+Deskripsi: Ambil statistik tukang (saldo poin, pekerjaan selesai, rating, transaksi summary, penarikan summary).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Statistik tukang berhasil diambil",
+	"data": {
+		"saldo_poin": 50000,
+		"total_pekerjaan_selesai": 12,
+		"rata_rata_rating": 4.6,
+		"transaksi": { "total": 20, "selesai": 12, "total_pendapatan": 300000 }
+	}
+}
+
+---
+
+## Referensi Model (ringkasan dari `prisma/schema.prisma`)
+- `users`: fields penting: `id`, `username`, `email`, `password_hash`, `nama_lengkap`, `foto_profil`, `no_telp`, `alamat`, `kota`, `provinsi`, `kode_pos`, `poin`, `is_active`, `is_verified`, `id_role`.
+- `profil_tukang`: `user_id`, `pengalaman_tahun`, `tarif_per_jam`, `status_ketersediaan`, `radius_layanan_km`, `bio`, `keahlian` (json), `rata_rata_rating`, `total_rating`, `total_pekerjaan_selesai`, `nama_bank`, `nomor_rekening`, `nama_pemilik_rekening`.
+- `transaksi`: banyak field termasuk `id`, `nomor_pesanan`, `client_id`, `tukang_id`, `judul_layanan`, `deskripsi_layanan`, `lokasi_kerja`, `tanggal_jadwal`, `waktu_jadwal`, `harga_dasar`, `biaya_tambahan`, `total_biaya`, `metode_pembayaran`, `poin_terpotong`, `status`, dsb.
+- `topup`, `penarikan`, `rating`, `kategori` juga tersedia sesuai schema.
+
+---
+
+## Contoh cURL untuk Endpoint Penting
+
+### 1. Register (Client)
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "client123",
+    "email": "client123@example.com",
+    "password": "password123",
+    "nama_lengkap": "Client Contoh",
+    "no_telp": "081234567890",
+    "role": "client",
+    "alamat": "Jl. Merdeka No. 123",
+    "kota": "Jakarta",
+    "provinsi": "DKI Jakarta",
+    "kode_pos": "12345"
+  }'
+```
+
+### 2. Register (Tukang) dengan Foto Profil
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -F "username=tukang123" \
+  -F "email=tukang123@example.com" \
+  -F "password=password123" \
+  -F "nama_lengkap=Tukang Contoh" \
+  -F "no_telp=081234567890" \
+  -F "role=tukang" \
+  -F "alamat=Jl. Sudirman No. 456" \
+  -F "kota=Jakarta" \
+  -F "provinsi=DKI Jakarta" \
+  -F "kode_pos=12345" \
+  -F "pengalaman_tahun=5" \
+  -F "tarif_per_jam=75000" \
+  -F "bio=Saya adalah tukang profesional dengan pengalaman 5 tahun" \
+  -F "keahlian=listrik" \
+  -F "keahlian=plumbing" \
+  -F "kategori_ids=1,2" \
+  -F "nama_bank=BCA" \
+  -F "nomor_rekening=1234567890" \
+  -F "nama_pemilik_rekening=Tukang Contoh" \
+  -F "foto_profil=@/path/to/photo.jpg"
+```
+
+### 3. Login (dengan username)
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "client123",
+    "password": "password123"
+  }'
+```
+
+### 4. Login (dengan email)
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "client123@example.com",
+    "password": "password123"
+  }'
+```
+
+### 5. Get Current User
+
+```bash
+curl -X GET http://localhost:3000/api/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 6. Change Password
+
+```bash
+curl -X POST http://localhost:3000/api/auth/change-password \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "old_password": "password123",
+    "new_password": "newpassword456",
+    "confirm_password": "newpassword456"
+  }'
+```
+
+### 7. Logout
+
+```bash
+curl -X POST http://localhost:3000/api/auth/logout \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 8. Get Client Profile
+
+```bash
+curl -X GET http://localhost:3000/api/client/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 9. Update Client Profile
+
+```bash
+curl -X PUT http://localhost:3000/api/client/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nama_lengkap": "Client Updated",
+    "no_telp": "081298765432",
+    "alamat": "Jl. Baru No. 789",
+    "kota": "Bandung",
+    "provinsi": "Jawa Barat",
+    "kode_pos": "40123"
+  }'
+```
+
+### 10. Update Client Profile dengan Foto
+
+```bash
+curl -X PUT http://localhost:3000/api/client/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -F "nama_lengkap=Client Updated" \
+  -F "no_telp=081298765432" \
+  -F "foto_profil=@/path/to/new-photo.jpg"
+```
+
+### 11. Get Categories
+
+```bash
+curl -X GET http://localhost:3000/api/client/categories \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 12. Browse Tukang (dengan filter)
+
+```bash
+curl -X GET "http://localhost:3000/api/client/tukang?kategori_id=1&kota=Jakarta&min_rating=4.0&order_by=rata_rata_rating&order_dir=desc&limit=10&offset=0" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 13. Get Tukang Detail
+
+```bash
+curl -X GET http://localhost:3000/api/client/tukang/7 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 14. Search Tukang
+
+```bash
+curl -X GET "http://localhost:3000/api/client/search-tukang?keyword=listrik&kota=Jakarta&kategori_id=1&limit=10&offset=0" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 15. Create Booking (Pembayaran Tunai)
+
+```bash
+curl -X POST http://localhost:3000/api/client/booking \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tukang_id": 7,
+    "kategori_id": 1,
+    "judul_layanan": "Perbaikan Instalasi Listrik",
+    "deskripsi_layanan": "Perlu perbaikan instalasi listrik di rumah",
+    "lokasi_kerja": "Jl. Sudirman No. 100, Jakarta",
+    "tanggal_jadwal": "2025-11-25",
+    "waktu_jadwal": "09:00",
+    "estimasi_durasi_jam": 3,
+    "harga_dasar": 225000,
+    "biaya_tambahan": 25000,
+    "metode_pembayaran": "tunai",
+    "catatan_client": "Mohon bawa peralatan lengkap"
+  }'
+```
+
+### 16. Create Booking (Pembayaran Poin)
+
+```bash
+curl -X POST http://localhost:3000/api/client/booking \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tukang_id": 7,
+    "kategori_id": 1,
+    "judul_layanan": "Pemasangan Lampu LED",
+    "deskripsi_layanan": "Pasang 10 lampu LED di seluruh rumah",
+    "lokasi_kerja": "Jl. Gatot Subroto No. 45, Jakarta",
+    "tanggal_jadwal": "2025-11-26",
+    "waktu_jadwal": "14:00",
+    "estimasi_durasi_jam": 2,
+    "harga_dasar": 150000,
+    "biaya_tambahan": 0,
+    "metode_pembayaran": "poin"
+  }'
+```
+
+### 17. Get Transactions (semua status)
+
+```bash
+curl -X GET "http://localhost:3000/api/client/transactions?limit=20&offset=0" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 18. Get Transactions (filter by status)
+
+```bash
+curl -X GET "http://localhost:3000/api/client/transactions?status=pending&limit=10&offset=0" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 19. Get Transaction Detail
+
+```bash
+curl -X GET http://localhost:3000/api/client/transactions/55 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 20. Cancel Transaction
+
+```bash
+curl -X PUT http://localhost:3000/api/client/transactions/55/cancel \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alasan_pembatalan": "Berubah pikiran, ada keperluan mendadak"
+  }'
+```
+
+### 21. Request Top-Up
+
+```bash
+curl -X POST http://localhost:3000/api/client/topup \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -F "jumlah=100000" \
+  -F "bukti_pembayaran=@/path/to/payment-proof.jpg"
+```
+
+### 22. Get Top-Up History
+
+```bash
+curl -X GET "http://localhost:3000/api/client/topup?status=pending&limit=10&offset=0" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 23. Submit Rating
+
+```bash
+curl -X POST http://localhost:3000/api/client/rating \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaksi_id": 55,
+    "rating": 5,
+    "ulasan": "Pekerjaan sangat rapi dan profesional. Sangat merekomendasikan!"
+  }'
+```
+
+### 24. Get Client Statistics
+
+```bash
+curl -X GET http://localhost:3000/api/client/statistics \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 25. Get Tukang Profile
+
+```bash
+curl -X GET http://localhost:3000/api/tukang/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 26. Update Tukang Profile
+
+```bash
+curl -X PUT http://localhost:3000/api/tukang/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nama_lengkap": "Tukang Updated",
+    "no_telp": "081298765432",
+    "alamat": "Jl. Pemuda No. 321",
+    "kota": "Surabaya",
+    "provinsi": "Jawa Timur",
+    "kode_pos": "60123",
+    "pengalaman_tahun": 7,
+    "tarif_per_jam": 85000,
+    "radius_layanan_km": 20,
+    "bio": "Tukang profesional dengan pengalaman 7 tahun",
+    "keahlian": ["listrik", "AC", "plumbing"],
+    "nama_bank": "Mandiri",
+    "nomor_rekening": "9876543210",
+    "nama_pemilik_rekening": "Tukang Updated",
+    "kategori_ids": [1, 2, 3]
+  }'
+```
+
+### 27. Update Tukang Profile dengan Foto
+
+```bash
+curl -X PUT http://localhost:3000/api/tukang/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -F "nama_lengkap=Tukang Updated" \
+  -F "pengalaman_tahun=7" \
+  -F "tarif_per_jam=85000" \
+  -F "foto_profil=@/path/to/new-photo.jpg"
+```
+
+### 28. Update Availability
+
+```bash
+curl -X PUT http://localhost:3000/api/tukang/availability \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status_ketersediaan": "tersedia"
+  }'
+```
+
+### 29. Get Orders (Tukang)
+
+```bash
+curl -X GET "http://localhost:3000/api/tukang/orders?status=pending&limit=10&offset=0" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 30. Get Order Detail (Tukang)
+
+```bash
+curl -X GET http://localhost:3000/api/tukang/orders/55 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 31. Accept Order
+
+```bash
+curl -X PUT http://localhost:3000/api/tukang/orders/55/accept \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 32. Reject Order
+
+```bash
+curl -X PUT http://localhost:3000/api/tukang/orders/55/reject \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alasan_penolakan": "Jadwal sudah penuh untuk tanggal tersebut"
+  }'
+```
+
+### 33. Start Work
+
+```bash
+curl -X PUT http://localhost:3000/api/tukang/orders/55/start \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 34. Complete Work
+
+```bash
+curl -X PUT http://localhost:3000/api/tukang/orders/55/complete \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "catatan_tukang": "Pekerjaan selesai dengan baik. Semua lampu sudah terpasang dan berfungsi normal."
+  }'
+```
+
+### 35. Confirm Tunai Payment
+
+```bash
+curl -X PUT http://localhost:3000/api/tukang/orders/55/confirm-tunai \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 36. Get Ratings (Tukang)
+
+```bash
+curl -X GET http://localhost:3000/api/tukang/ratings \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 37. Request Withdrawal
+
+```bash
+curl -X POST http://localhost:3000/api/tukang/withdrawal \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jumlah": 500000,
+    "nama_bank": "BCA",
+    "nomor_rekening": "1234567890",
+    "nama_pemilik_rekening": "Tukang Contoh"
+  }'
+```
+
+### 38. Get Withdrawal History
+
+```bash
+curl -X GET "http://localhost:3000/api/tukang/withdrawal?status=pending&limit=10&offset=0" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### 39. Get Tukang Statistics
+
+```bash
+curl -X GET http://localhost:3000/api/tukang/statistics \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+---
+
+## Catatan Penggunaan cURL
+
+1. **Ganti URL Base**: Sesuaikan `http://localhost:3000` dengan URL server Anda (misalnya `https://api.rampungin.com` untuk production).
+
+2. **Token JWT**: Setelah login, simpan token dari response dan gunakan di header `Authorization: Bearer YOUR_JWT_TOKEN_HERE` untuk endpoint yang Protected.
+
+3. **File Upload**: 
+   - Gunakan `-F` untuk multipart/form-data
+   - Gunakan `@` sebelum path file (contoh: `@/path/to/file.jpg`)
+   - Path file harus absolut atau relatif dari direktori tempat Anda menjalankan cURL
+
+4. **Query Parameters**: 
+   - Untuk GET dengan query string, gunakan tanda kutip pada URL lengkap
+   - Contoh: `"http://localhost:3000/api/client/tukang?kategori_id=1&kota=Jakarta"`
+
+5. **JSON Response**: Untuk mempercantik output JSON, tambahkan `| jq` di akhir command (memerlukan instalasi `jq`):
+   ```bash
+   curl -X GET http://localhost:3000/api/auth/me \
+     -H "Authorization: Bearer YOUR_TOKEN" | jq
+   ```
+
+6. **Save Response**: Untuk menyimpan response ke file:
+   ```bash
+   curl -X GET http://localhost:3000/api/client/profile \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -o response.json
+   ```
+
+7. **Verbose Mode**: Untuk debugging, tambahkan flag `-v`:
+   ```bash
+   curl -v -X POST http://localhost:3000/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"client123","password":"password123"}'
+   ```
+
+## Workflow Testing dengan cURL
+
+### Skenario 1: Client Booking Flow
+
+```bash
+# 1. Register sebagai client
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testclient","email":"test@client.com","password":"pass123","nama_lengkap":"Test Client","no_telp":"08123456789","role":"client","kota":"Jakarta"}'
+
+# 2. Login
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testclient","password":"pass123"}' \
+  | jq -r '.data.token')
+
+# 3. Browse tukang
+curl -X GET "http://localhost:3000/api/client/tukang?kota=Jakarta&limit=5" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 4. Get detail tukang (misal ID=7)
+curl -X GET http://localhost:3000/api/client/tukang/7 \
+  -H "Authorization: Bearer $TOKEN"
+
+# 5. Create booking
+curl -X POST http://localhost:3000/api/client/booking \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"tukang_id":7,"kategori_id":1,"judul_layanan":"Test Service","lokasi_kerja":"Jakarta","tanggal_jadwal":"2025-12-01","waktu_jadwal":"10:00","harga_dasar":100000,"metode_pembayaran":"tunai"}'
+
+# 6. Check transactions
+curl -X GET http://localhost:3000/api/client/transactions \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Skenario 2: Tukang Order Management Flow
+
+```bash
+# 1. Register sebagai tukang
+curl -X POST http://localhost:3000/api/auth/register \
+  -F "username=testtukang" \
+  -F "email=test@tukang.com" \
+  -F "password=pass123" \
+  -F "nama_lengkap=Test Tukang" \
+  -F "no_telp=08123456789" \
+  -F "role=tukang" \
+  -F "kota=Jakarta" \
+  -F "pengalaman_tahun=3" \
+  -F "tarif_per_jam=75000" \
+  -F "kategori_ids=1,2"
+
+# 2. Login (Note: tukang harus diverifikasi admin dulu)
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testtukang","password":"pass123"}' \
+  | jq -r '.data.token')
+
+# 3. Update availability
+curl -X PUT http://localhost:3000/api/tukang/availability \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status_ketersediaan":"tersedia"}'
+
+# 4. Get orders
+curl -X GET "http://localhost:3000/api/tukang/orders?status=pending" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 5. Accept order (misal ID=55)
+curl -X PUT http://localhost:3000/api/tukang/orders/55/accept \
+  -H "Authorization: Bearer $TOKEN"
+
+# 6. Start work
+curl -X PUT http://localhost:3000/api/tukang/orders/55/start \
+  -H "Authorization: Bearer $TOKEN"
+
+# 7. Complete work
+curl -X PUT http://localhost:3000/api/tukang/orders/55/complete \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"catatan_tukang":"Pekerjaan selesai dengan baik"}'
+
+# 8. Get statistics
+curl -X GET http://localhost:3000/api/tukang/statistics \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## Testing dengan PowerShell (Windows)
+
+Jika Anda menggunakan PowerShell, berikut beberapa contoh yang disesuaikan:
+
+### Login (PowerShell)
+
+```powershell
+$body = @{
+    username = "client123"
+    password = "password123"
+} | ConvertTo-Json
+
+$response = Invoke-RestMethod -Uri "http://localhost:3000/api/auth/login" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body $body
+
+$token = $response.data.token
+Write-Host "Token: $token"
+```
+
+### Get Profile (PowerShell)
+
+```powershell
+$headers = @{
+    Authorization = "Bearer $token"
+}
+
+Invoke-RestMethod -Uri "http://localhost:3000/api/client/profile" `
+    -Method Get `
+    -Headers $headers
+```
+
+### Create Booking (PowerShell)
+
+```powershell
+$headers = @{
+    Authorization = "Bearer $token"
+}
+
+$body = @{
+    tukang_id = 7
+    kategori_id = 1
+    judul_layanan = "Test Service"
+    lokasi_kerja = "Jakarta"
+    tanggal_jadwal = "2025-12-01"
+    waktu_jadwal = "10:00"
+    harga_dasar = 100000
+    metode_pembayaran = "tunai"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:3000/api/client/booking" `
+    -Method Post `
+    -Headers $headers `
+    -ContentType "application/json" `
+    -Body $body
+```
+
+---
+
+**Dokumentasi ini mencakup semua endpoint yang tersedia di aplikasi Rampungin. Gunakan contoh cURL atau PowerShell di atas untuk testing dan integrasi dengan aplikasi Flutter Anda.**
+
