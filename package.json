@@ -11,10 +11,7 @@
     "prisma:generate": "dotenv -e .env -- npx prisma generate",
     "prisma:migrate": "dotenv -e .env -- npx prisma migrate dev",
     "prisma:studio": "dotenv -e .env -- npx prisma studio",
-    "prisma:pull": "dotenv -e .env -- npx prisma db pull",
-
-    "// ----- TAMBAHKAN BARIS INI ----- //": "",
-    "postinstall": "npm run prisma:generate"
+    "prisma:pull": "dotenv -e .env -- npx prisma db pull"
   },
   "keywords": [],
   "author": "",
