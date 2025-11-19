@@ -68,4 +68,32 @@ const uploadTopup = multer({
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
 });
 
-module.exports = { uploadProfile, uploadTopup };
+// Konfigurasi storage untuk Bukti Transfer Withdrawal (Admin)
+const withdrawalStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = 'writable/withdrawal';
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+// Filter file untuk withdrawal (gambar atau PDF)
+const withdrawalFileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    cb(null, true);
+  } else {
+    cb(new Error('Hanya file gambar atau PDF yang diizinkan!'), false);
+  }
+};
+
+const uploadWithdrawal = multer({
+  storage: withdrawalStorage,
+  fileFilter: withdrawalFileFilter,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+});
+
+module.exports = { uploadProfile, uploadTopup, uploadWithdrawal };

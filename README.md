@@ -85,7 +85,8 @@ rampungin_production/
 │   ├── controllers/
 │   │   ├── auth.controller.js      # Auth endpoints
 │   │   ├── client.controller.js    # Client endpoints
-│   │   └── tukang.controller.js    # Tukang endpoints
+│   │   ├── tukang.controller.js    # Tukang endpoints
+│   │   └── admin.controller.js     # Admin endpoints (NEW)
 │   ├── middleware/
 │   │   ├── auth.middleware.js      # JWT verification
 │   │   └── upload.middleware.js    # Multer file upload
@@ -93,6 +94,7 @@ rampungin_production/
 │   │   ├── auth.routes.js          # Auth routes
 │   │   ├── client.routes.js        # Client routes
 │   │   ├── tukang.routes.js        # Tukang routes
+│   │   ├── admin.routes.js         # Admin routes (NEW)
 │   │   └── index.js                # Main router
 │   ├── utils/
 │   │   ├── prisma.util.js          # Prisma client singleton
@@ -107,6 +109,7 @@ rampungin_production/
 ├── package.json
 ├── .env
 ├── listapiproduction.txt           # Full API documentation
+├── API_ADMIN_DOCUMENTATION.md      # Admin API documentation (NEW)
 ├── API_MIGRATION_NOTES.md          # Migration guide
 └── ENDPOINTS_SUMMARY.md            # Quick reference
 ```
@@ -123,7 +126,17 @@ Lihat file: `listapiproduction.txt`
 - Contoh cURL untuk testing
 - Penjelasan flow bisnis
 
-### 2. Migration Notes
+### 2. Admin API Documentation
+
+Lihat file: `API_ADMIN_DOCUMENTATION.md`
+
+- 16 admin endpoints
+- Dashboard & user management
+- Financial operations (topup, withdrawal)
+- Verification systems
+- Transaction monitoring
+
+### 3. Migration Notes
 
 Lihat file: `API_MIGRATION_NOTES.md`
 
@@ -131,7 +144,7 @@ Lihat file: `API_MIGRATION_NOTES.md`
 - Flutter migration guide
 - Testing checklist
 
-### 3. Quick Reference
+### 4. Quick Reference
 
 Lihat file: `ENDPOINTS_SUMMARY.md`
 
@@ -173,7 +186,17 @@ http://localhost:3000/api
 - Withdrawal
 - Statistics
 
-**Total: 34 endpoints**
+### Admin Endpoints (16 endpoints) 🆕
+
+- Dashboard & statistics
+- User management (list, ban/unban)
+- Category CRUD
+- Tukang verification
+- Topup verification
+- Withdrawal verification (with proof upload)
+- Transaction monitoring
+
+**Total: 50 endpoints (34 public + 16 admin)**
 
 ---
 

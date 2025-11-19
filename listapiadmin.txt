@@ -1,0 +1,1130 @@
+# API Documentation - Admin Panel
+
+## Rampungin Backend API (Node.js + Express + Prisma + PostgreSQL)
+
+**Base URL:** `http://localhost:3000/api/admin`
+
+**Authentication:**
+
+- Semua endpoint memerlukan JWT token dengan role `admin`
+- Header: `Authorization: Bearer <token_admin>`
+
+---
+
+## 📊 A. Dashboard & Users Management
+
+### 1. GET Dashboard Statistics
+
+**Endpoint:** `GET /api/admin/dashboard`
+
+**Description:** Mengambil statistik ringkas untuk beranda admin.
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Dashboard berhasil dimuat",
+  "data": {
+    "users": {
+      "total": 150,
+      "client": 100,
+      "tukang": 48,
+      "admin": 2
+    },
+    "finance": {
+      "pending_topup": 5,
+      "pending_withdrawal": 3
+    },
+    "verifications": {
+      "unverified_tukang": 7
+    },
+    "transactions": {
+      "total": 523,
+      "pending": 12,
+      "completed": 487
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET http://localhost:3000/api/admin/dashboard \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 2. GET All Users
+
+**Endpoint:** `GET /api/admin/users`
+
+**Description:** List semua user dengan filter optional.
+
+**Query Parameters:**
+
+- `role` (optional): Filter by role (`client`, `tukang`, `admin`)
+- `is_active` (optional): Filter by status (`true`, `false`)
+- `is_verified` (optional): Filter by verification (`true`, `false`)
+- `search` (optional): Search by username, email, atau nama
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Data users berhasil dimuat",
+  "data": {
+    "users": [
+      {
+        "id": 1,
+        "username": "johndoe",
+        "email": "john@example.com",
+        "nama_lengkap": "John Doe",
+        "no_telp": "08123456789",
+        "kota": "Jakarta",
+        "poin": 50000,
+        "is_active": true,
+        "is_verified": true,
+        "roles": {
+          "id": 2,
+          "name": "client",
+          "description": "Client"
+        },
+        "created_at": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 150,
+      "total_pages": 8
+    }
+  }
+}
+```
+
+**cURL Examples:**
+
+```bash
+# Get all users
+curl -X GET "http://localhost:3000/api/admin/users" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get only clients
+curl -X GET "http://localhost:3000/api/admin/users?role=client" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get inactive users
+curl -X GET "http://localhost:3000/api/admin/users?is_active=false" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Search users
+curl -X GET "http://localhost:3000/api/admin/users?search=john" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 3. UPDATE User Status (Ban/Unban)
+
+**Endpoint:** `PUT /api/admin/users/:id/status`
+
+**Description:** Mengubah status aktif user (Ban/Unban).
+
+**Request Body:**
+
+```json
+{
+  "is_active": false
+}
+```
+
+- `is_active`: `true` untuk unban, `false` untuk ban
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "User berhasil dinonaktifkan",
+  "data": {
+    "id": 15,
+    "username": "baduser",
+    "email": "bad@example.com",
+    "is_active": false,
+    "roles": {
+      "name": "client"
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+# Ban user
+curl -X PUT http://localhost:3000/api/admin/users/15/status \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": false}'
+
+# Unban user
+curl -X PUT http://localhost:3000/api/admin/users/15/status \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": true}'
+```
+
+**Notes:**
+
+- Admin tidak dapat ban diri sendiri
+- Admin tidak dapat ban admin lain
+- Password tetap aman (tidak muncul di response)
+
+---
+
+## 🏷️ B. Master Data Kategori
+
+### 4. GET All Categories
+
+**Endpoint:** `GET /api/admin/categories`
+
+**Query Parameters:**
+
+- `is_active` (optional): Filter by status (`true`, `false`)
+- `search` (optional): Search by nama atau deskripsi
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Data kategori berhasil dimuat",
+  "data": [
+    {
+      "id": 1,
+      "nama": "Tukang Bangunan",
+      "deskripsi": "Spesialis renovasi dan pembangunan rumah",
+      "is_active": true,
+      "created_at": "2024-01-10T08:00:00.000Z",
+      "updated_at": "2024-01-10T08:00:00.000Z"
+    }
+  ]
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET "http://localhost:3000/api/admin/categories" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 5. CREATE Category
+
+**Endpoint:** `POST /api/admin/categories`
+
+**Request Body:**
+
+```json
+{
+  "nama": "Tukang Las Listrik",
+  "deskripsi": "Spesialis las pagar dan kanopi"
+}
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Kategori berhasil dibuat",
+  "data": {
+    "id": 8,
+    "nama": "Tukang Las Listrik",
+    "deskripsi": "Spesialis las pagar dan kanopi",
+    "is_active": true,
+    "created_at": "2024-11-19T10:30:00.000Z"
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X POST http://localhost:3000/api/admin/categories \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nama": "Tukang Las Listrik",
+    "deskripsi": "Spesialis las pagar dan kanopi"
+  }'
+```
+
+**Validation:**
+
+- `nama` wajib diisi
+- Nama kategori tidak boleh duplikat (case-insensitive)
+
+---
+
+### 6. UPDATE Category
+
+**Endpoint:** `PUT /api/admin/categories/:id`
+
+**Request Body:**
+
+```json
+{
+  "nama": "Tukang Las & Listrik",
+  "deskripsi": "Spesialis las dan instalasi listrik",
+  "is_active": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Kategori berhasil diupdate",
+  "data": {
+    "id": 8,
+    "nama": "Tukang Las & Listrik",
+    "deskripsi": "Spesialis las dan instalasi listrik",
+    "is_active": true,
+    "updated_at": "2024-11-19T11:00:00.000Z"
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X PUT http://localhost:3000/api/admin/categories/8 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nama": "Tukang Las & Listrik",
+    "deskripsi": "Spesialis las dan instalasi listrik"
+  }'
+```
+
+---
+
+### 7. DELETE Category (Soft Delete)
+
+**Endpoint:** `DELETE /api/admin/categories/:id`
+
+**Description:** Soft delete kategori (set `is_active` = false).
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Kategori berhasil dihapus (soft delete)",
+  "data": {
+    "id": 8,
+    "nama": "Tukang Las & Listrik",
+    "is_active": false,
+    "updated_at": "2024-11-19T12:00:00.000Z"
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X DELETE http://localhost:3000/api/admin/categories/8 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+## ✅ C. Verifikasi Tukang
+
+### 8. GET Unverified Tukang
+
+**Endpoint:** `GET /api/admin/verifications/tukang`
+
+**Description:** List tukang dengan `is_verified: false`.
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Data tukang belum terverifikasi berhasil dimuat",
+  "data": {
+    "tukang": [
+      {
+        "id": 25,
+        "username": "tukang_budi",
+        "email": "budi@example.com",
+        "nama_lengkap": "Budi Santoso",
+        "no_telp": "08567891234",
+        "kota": "Bandung",
+        "is_verified": false,
+        "roles": {
+          "name": "tukang"
+        },
+        "profil_tukang": {
+          "pengalaman_tahun": 5,
+          "tarif_per_jam": "75000.00",
+          "bio": "Berpengalaman dalam renovasi rumah",
+          "nama_bank": "BCA",
+          "nomor_rekening": "1234567890"
+        },
+        "kategori_tukang": [
+          {
+            "kategori": {
+              "id": 1,
+              "nama": "Tukang Bangunan"
+            }
+          }
+        ],
+        "created_at": "2024-11-18T14:20:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 7,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET "http://localhost:3000/api/admin/verifications/tukang?page=1&limit=10" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 9. VERIFY Tukang (Approve/Reject)
+
+**Endpoint:** `PUT /api/admin/verifications/tukang/:id`
+
+**Description:** Approve atau Reject pendaftaran tukang.
+
+**Request Body:**
+
+```json
+{
+  "action": "approve"
+}
+```
+
+- `action`: `"approve"` atau `"reject"`
+
+**Response (Approve):**
+
+```json
+{
+  "status": "success",
+  "message": "Tukang berhasil disetujui",
+  "data": {
+    "id": 25,
+    "username": "tukang_budi",
+    "email": "budi@example.com",
+    "is_verified": true,
+    "profil_tukang": {
+      "pengalaman_tahun": 5,
+      "tarif_per_jam": "75000.00"
+    }
+  }
+}
+```
+
+**cURL Examples:**
+
+```bash
+# Approve tukang
+curl -X PUT http://localhost:3000/api/admin/verifications/tukang/25 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "approve"}'
+
+# Reject tukang
+curl -X PUT http://localhost:3000/api/admin/verifications/tukang/25 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "reject"}'
+```
+
+**Important:**
+
+- Setelah approve, tukang langsung muncul di pencarian client
+- Reject tidak menghapus user, hanya set `is_verified = false`
+
+---
+
+## 💰 D. Keuangan: Top-Up (Client)
+
+### 10. GET Pending Topup
+
+**Endpoint:** `GET /api/admin/finance/topup`
+
+**Description:** List topup dengan status `pending`.
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Data topup pending berhasil dimuat",
+  "data": {
+    "topup": [
+      {
+        "id": 42,
+        "user_id": 10,
+        "jumlah": "100000.00",
+        "metode_pembayaran": "qris",
+        "bukti_pembayaran": "uploads/topup/bukti-1700123456789.jpg",
+        "status": "pending",
+        "created_at": "2024-11-19T08:30:00.000Z",
+        "users_topup_user_idTousers": {
+          "id": 10,
+          "username": "client_andi",
+          "email": "andi@example.com",
+          "nama_lengkap": "Andi Pratama",
+          "poin": 25000
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 5,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET "http://localhost:3000/api/admin/finance/topup" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 11. VERIFY Topup (Approve/Reject)
+
+**Endpoint:** `PUT /api/admin/finance/topup/:id`
+
+**Description:** Approve/Reject topup.
+
+**Request Body (Approve):**
+
+```json
+{
+  "action": "approve"
+}
+```
+
+**Request Body (Reject):**
+
+```json
+{
+  "action": "reject",
+  "alasan_penolakan": "Bukti pembayaran tidak jelas"
+}
+```
+
+**Response (Approve):**
+
+```json
+{
+  "status": "success",
+  "message": "Topup berhasil disetujui",
+  "data": {
+    "id": 42,
+    "user_id": 10,
+    "jumlah": "100000.00",
+    "status": "berhasil",
+    "diverifikasi_oleh": 1,
+    "waktu_verifikasi": "2024-11-19T09:00:00.000Z",
+    "users_topup_user_idTousers": {
+      "id": 10,
+      "username": "client_andi",
+      "poin": 125000
+    }
+  }
+}
+```
+
+**cURL Examples:**
+
+```bash
+# Approve topup
+curl -X PUT http://localhost:3000/api/admin/finance/topup/42 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "approve"}'
+
+# Reject topup
+curl -X PUT http://localhost:3000/api/admin/finance/topup/42 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "reject",
+    "alasan_penolakan": "Bukti pembayaran tidak jelas"
+  }'
+```
+
+**Important:**
+
+- Approve: Poin client otomatis bertambah (gunakan transaction)
+- Reject: Wajib isi `alasan_penolakan`
+- Topup yang sudah diverifikasi tidak bisa diubah lagi
+
+---
+
+## 💸 E. Keuangan: Withdrawal (Tukang)
+
+### 12. GET Pending Withdrawal
+
+**Endpoint:** `GET /api/admin/finance/withdrawal`
+
+**Description:** List withdrawal dengan status `pending`.
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Data withdrawal pending berhasil dimuat",
+  "data": {
+    "withdrawal": [
+      {
+        "id": 15,
+        "tukang_id": 20,
+        "jumlah": "500000.00",
+        "nama_bank": "BCA",
+        "nomor_rekening": "1234567890",
+        "nama_pemilik_rekening": "Budi Santoso",
+        "biaya_admin": "10000.00",
+        "jumlah_bersih": "490000.00",
+        "status": "pending",
+        "created_at": "2024-11-19T07:00:00.000Z",
+        "users_penarikan_tukang_idTousers": {
+          "id": 20,
+          "username": "tukang_budi",
+          "email": "budi@example.com",
+          "nama_lengkap": "Budi Santoso",
+          "poin": 250000
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 3,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET "http://localhost:3000/api/admin/finance/withdrawal" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 13. CONFIRM Withdrawal (Approve with proof)
+
+**Endpoint:** `PUT /api/admin/finance/withdrawal/:id/confirm`
+
+**Description:** Approve withdrawal. **WAJIB upload file bukti transfer.**
+
+**Content-Type:** `multipart/form-data`
+
+**Form Data:**
+
+- `bukti_transfer`: File (Image/PDF, max 2MB)
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Withdrawal berhasil dikonfirmasi",
+  "data": {
+    "id": 15,
+    "tukang_id": 20,
+    "jumlah": "500000.00",
+    "jumlah_bersih": "490000.00",
+    "status": "selesai",
+    "diproses_oleh": 1,
+    "waktu_diproses": "2024-11-19T09:30:00.000Z",
+    "bukti_transfer": "uploads/withdrawal/bukti_transfer-1700456789123.jpg",
+    "users_penarikan_tukang_idTousers": {
+      "id": 20,
+      "username": "tukang_budi",
+      "poin": 250000
+    },
+    "users_penarikan_diproses_olehTousers": {
+      "id": 1,
+      "username": "admin",
+      "nama_lengkap": "Admin System"
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X PUT http://localhost:3000/api/admin/finance/withdrawal/15/confirm \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -F "bukti_transfer=@/path/to/bukti_transfer.jpg"
+```
+
+**PowerShell Example:**
+
+```powershell
+$headers = @{
+    "Authorization" = "Bearer YOUR_ADMIN_TOKEN"
+}
+
+$form = @{
+    bukti_transfer = Get-Item -Path "C:\path\to\bukti_transfer.jpg"
+}
+
+Invoke-RestMethod -Uri "http://localhost:3000/api/admin/finance/withdrawal/15/confirm" `
+    -Method PUT `
+    -Headers $headers `
+    -Form $form
+```
+
+**Important:**
+
+- File wajib diupload (image/pdf, max 2MB)
+- Bukti transfer disimpan di `writable/withdrawal/`
+- Poin tukang tidak berubah (sudah dipotong saat request)
+
+---
+
+### 14. REJECT Withdrawal (Refund poin)
+
+**Endpoint:** `PUT /api/admin/finance/withdrawal/:id/reject`
+
+**Description:** Reject withdrawal. **Poin dikembalikan ke tukang.**
+
+**Request Body:**
+
+```json
+{
+  "alasan_penolakan": "Nomor rekening tidak valid"
+}
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Withdrawal ditolak dan poin dikembalikan",
+  "data": {
+    "id": 15,
+    "tukang_id": 20,
+    "jumlah": "500000.00",
+    "status": "ditolak",
+    "diproses_oleh": 1,
+    "waktu_diproses": "2024-11-19T09:45:00.000Z",
+    "alasan_penolakan": "Nomor rekening tidak valid",
+    "users_penarikan_tukang_idTousers": {
+      "id": 20,
+      "username": "tukang_budi",
+      "poin": 750000
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X PUT http://localhost:3000/api/admin/finance/withdrawal/15/reject \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alasan_penolakan": "Nomor rekening tidak valid"
+  }'
+```
+
+**Important:**
+
+- Wajib isi `alasan_penolakan`
+- Poin otomatis dikembalikan ke tukang (gunakan transaction)
+- Poin yang dikembalikan = `jumlah` (sebelum dikurangi fee)
+
+---
+
+## 📈 F. Monitoring Transaksi
+
+### 15. GET All Transactions
+
+**Endpoint:** `GET /api/admin/transactions`
+
+**Description:** Monitor semua transaksi dengan filter.
+
+**Query Parameters:**
+
+- `status` (optional): Filter by status (`pending`, `diterima`, `dalam_proses`, `selesai`, `ditolak`, `dibatalkan`)
+- `metode_pembayaran` (optional): Filter by payment (`POIN`, `TUNAI`)
+- `search` (optional): Search by nomor pesanan atau judul layanan
+- `start_date` (optional): Filter from date (ISO format)
+- `end_date` (optional): Filter to date (ISO format)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Data transaksi berhasil dimuat",
+  "data": {
+    "transactions": [
+      {
+        "id": 123,
+        "nomor_pesanan": "TRX-2024111900123",
+        "client_id": 10,
+        "tukang_id": 20,
+        "kategori_id": 1,
+        "judul_layanan": "Renovasi Kamar Tidur",
+        "lokasi_kerja": "Jl. Merdeka No. 45, Jakarta",
+        "tanggal_jadwal": "2024-11-20",
+        "waktu_jadwal": "09:00:00",
+        "total_biaya": "350000.00",
+        "metode_pembayaran": "POIN",
+        "status": "selesai",
+        "users_transaksi_client_idTousers": {
+          "id": 10,
+          "username": "client_andi",
+          "nama_lengkap": "Andi Pratama"
+        },
+        "users_transaksi_tukang_idTousers": {
+          "id": 20,
+          "username": "tukang_budi",
+          "nama_lengkap": "Budi Santoso"
+        },
+        "kategori": {
+          "id": 1,
+          "nama": "Tukang Bangunan"
+        },
+        "rating": {
+          "rating": 5,
+          "ulasan": "Kerja rapi dan tepat waktu"
+        },
+        "created_at": "2024-11-19T08:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 523,
+      "total_pages": 27
+    }
+  }
+}
+```
+
+**cURL Examples:**
+
+```bash
+# Get all transactions
+curl -X GET "http://localhost:3000/api/admin/transactions" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Filter by status
+curl -X GET "http://localhost:3000/api/admin/transactions?status=pending" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Filter by date range
+curl -X GET "http://localhost:3000/api/admin/transactions?start_date=2024-11-01&end_date=2024-11-30" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Search transactions
+curl -X GET "http://localhost:3000/api/admin/transactions?search=renovasi" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 16. GET Transaction Detail
+
+**Endpoint:** `GET /api/admin/transactions/:id`
+
+**Description:** Detail lengkap transaksi termasuk history status.
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Detail transaksi berhasil dimuat",
+  "data": {
+    "id": 123,
+    "nomor_pesanan": "TRX-2024111900123",
+    "client_id": 10,
+    "tukang_id": 20,
+    "judul_layanan": "Renovasi Kamar Tidur",
+    "deskripsi_layanan": "Renovasi total kamar tidur ukuran 3x4 meter",
+    "lokasi_kerja": "Jl. Merdeka No. 45, Jakarta",
+    "tanggal_jadwal": "2024-11-20",
+    "waktu_jadwal": "09:00:00",
+    "total_biaya": "350000.00",
+    "metode_pembayaran": "POIN",
+    "status": "selesai",
+    "users_transaksi_client_idTousers": {
+      "id": 10,
+      "username": "client_andi",
+      "email": "andi@example.com",
+      "nama_lengkap": "Andi Pratama",
+      "no_telp": "08123456789"
+    },
+    "users_transaksi_tukang_idTousers": {
+      "id": 20,
+      "username": "tukang_budi",
+      "email": "budi@example.com",
+      "nama_lengkap": "Budi Santoso",
+      "no_telp": "08567891234",
+      "profil_tukang": {
+        "pengalaman_tahun": 5,
+        "tarif_per_jam": "75000.00"
+      }
+    },
+    "kategori": {
+      "id": 1,
+      "nama": "Tukang Bangunan",
+      "deskripsi": "Spesialis renovasi rumah"
+    },
+    "rating": {
+      "id": 45,
+      "rating": 5,
+      "ulasan": "Kerja rapi dan tepat waktu",
+      "created_at": "2024-11-20T16:00:00.000Z"
+    },
+    "riwayat_status_transaksi": [
+      {
+        "id": 1,
+        "status_dari": null,
+        "status_ke": "pending",
+        "diubah_oleh": 10,
+        "keterangan": "Pesanan dibuat",
+        "created_at": "2024-11-19T08:00:00.000Z",
+        "users": {
+          "username": "client_andi"
+        }
+      },
+      {
+        "id": 2,
+        "status_dari": "pending",
+        "status_ke": "diterima",
+        "diubah_oleh": 20,
+        "keterangan": "Pesanan diterima tukang",
+        "created_at": "2024-11-19T09:30:00.000Z",
+        "users": {
+          "username": "tukang_budi"
+        }
+      }
+    ],
+    "created_at": "2024-11-19T08:00:00.000Z",
+    "updated_at": "2024-11-20T15:00:00.000Z"
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET http://localhost:3000/api/admin/transactions/123 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+## 🔒 Security & Authorization
+
+### Authentication Flow
+
+1. Admin login via `/api/auth/login`
+2. Sistem verify role = `admin`
+3. Token digunakan untuk semua admin endpoints
+4. Token disimpan di header `Authorization: Bearer <token>`
+
+### Middleware Chain
+
+Semua admin routes menggunakan:
+
+1. `verifyToken` - Verify JWT valid
+2. `isAdmin` - Check role = admin
+
+### File Upload Security
+
+- **Withdrawal proof:** Max 2MB, image/pdf only
+- Stored in `writable/withdrawal/`
+- Path saved in database: `uploads/withdrawal/filename.jpg`
+
+---
+
+## 📊 Database Transaction Safety
+
+### Financial Operations (CRITICAL)
+
+Operasi keuangan menggunakan `prisma.$transaction`:
+
+**Topup Approve:**
+
+1. Update topup status → `berhasil`
+2. Increment user poin
+
+**Withdrawal Reject:**
+
+1. Update withdrawal status → `ditolak`
+2. Refund poin to tukang
+
+**Atomicity Guaranteed:** Semua step sukses atau rollback.
+
+---
+
+## 🧪 Testing Examples
+
+### PowerShell Test Script
+
+```powershell
+$BASE_URL = "http://localhost:3000/api"
+
+# 1. Login as admin
+$loginResponse = Invoke-RestMethod -Uri "$BASE_URL/auth/login" `
+  -Method POST `
+  -Headers @{"Content-Type"="application/json"} `
+  -Body '{"username":"admin","password":"admin123"}'
+
+$adminToken = $loginResponse.data.token
+
+# 2. Get dashboard
+$dashboard = Invoke-RestMethod -Uri "$BASE_URL/admin/dashboard" `
+  -Method GET `
+  -Headers @{"Authorization"="Bearer $adminToken"}
+
+Write-Host "Dashboard:"
+$dashboard.data | ConvertTo-Json
+
+# 3. Get pending topup
+$topup = Invoke-RestMethod -Uri "$BASE_URL/admin/finance/topup" `
+  -Method GET `
+  -Headers @{"Authorization"="Bearer $adminToken"}
+
+Write-Host "Pending Topup: $($topup.data.topup.Count)"
+
+# 4. Approve topup (example)
+if ($topup.data.topup.Count -gt 0) {
+    $topupId = $topup.data.topup[0].id
+    $approve = Invoke-RestMethod -Uri "$BASE_URL/admin/finance/topup/$topupId" `
+      -Method PUT `
+      -Headers @{"Authorization"="Bearer $adminToken"; "Content-Type"="application/json"} `
+      -Body '{"action":"approve"}'
+
+    Write-Host "Topup approved!"
+}
+```
+
+---
+
+## 📋 Common Response Codes
+
+| Code | Meaning      | Example                                  |
+| ---- | ------------ | ---------------------------------------- |
+| 200  | Success      | Data retrieved/updated successfully      |
+| 201  | Created      | New category created                     |
+| 400  | Bad Request  | Missing required field, invalid action   |
+| 401  | Unauthorized | Token invalid/expired, not admin         |
+| 403  | Forbidden    | Cannot ban admin, cannot edit own status |
+| 404  | Not Found    | User/category/transaction not found      |
+| 500  | Server Error | Database error, unexpected error         |
+
+---
+
+## 🔍 Notes untuk Flutter Developer
+
+1. **Base URL Update:**
+
+   - Old: `http://localhost/admintukang`
+   - New: `http://localhost:3000`
+
+2. **Authentication:**
+
+   - Semua request butuh header `Authorization: Bearer <token>`
+   - Token didapat dari login dengan role admin
+
+3. **Pagination:**
+
+   - Default: page=1, limit=20
+   - Response include `pagination` object dengan total pages
+
+4. **File Upload (Withdrawal Confirm):**
+
+   - Use `multipart/form-data`
+   - Field name: `bukti_transfer`
+   - Max size: 2MB
+   - Allowed: image/\*, application/pdf
+
+5. **Financial Safety:**
+
+   - Topup approve → poin otomatis bertambah
+   - Withdrawal reject → poin otomatis kembali
+   - Semua gunakan database transaction (atomic)
+
+6. **Real-time Effect:**
+   - Tukang verified → langsung muncul di client search
+   - User banned → langsung tidak bisa login
+   - Topup approved → poin langsung bertambah
+
+---
+
+## 📞 Support
+
+**Backend Team:** backend@rampungin.com  
+**API Version:** 1.0.0  
+**Last Updated:** November 19, 2025
+
+---
+
+**Happy Coding! 🚀**

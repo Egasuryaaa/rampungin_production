@@ -38,6 +38,8 @@ writable/profiles/*
 !writable/profiles/.gitkeep
 writable/topup/*
 !writable/topup/.gitkeep
+writable/withdrawal/*
+!writable/withdrawal/.gitkeep
 uploads/*
 !uploads/.gitkeep
 
