@@ -176,14 +176,23 @@ exports.browseTukang = async (req, res) => {
 
     // Format data agar sesuai dokumen
     const formattedTukangs = tukangs.map(t => ({
-      id: t.profil_tukang?.id,
+      tukang_id: t.profil_tukang?.id,
       user_id: t.id,
       nama_lengkap: t.nama_lengkap,
       foto_profil: t.foto_profil,
       no_telp: t.no_telp,
       kota: t.kota,
       provinsi: t.provinsi,
-      ...t.profil_tukang,
+      profil_tukang: {
+        pengalaman_tahun: t.profil_tukang?.pengalaman_tahun,
+        tarif_per_jam: t.profil_tukang?.tarif_per_jam,
+        rata_rata_rating: t.profil_tukang?.rata_rata_rating,
+        total_rating: t.profil_tukang?.total_rating,
+        total_pekerjaan_selesai: t.profil_tukang?.total_pekerjaan_selesai,
+        status_ketersediaan: t.profil_tukang?.status_ketersediaan,
+        radius_layanan_km: t.profil_tukang?.radius_layanan_km,
+        bio: t.profil_tukang?.bio,
+      },
       kategori: t.kategori_tukang.map(kt => kt.kategori)
     }));
 
@@ -197,12 +206,21 @@ exports.browseTukang = async (req, res) => {
 // 10. GET TUKANG DETAIL
 exports.getTukangDetail = async (req, res) => {
   try {
-    const { tukang_id } = req.params; // Ini adalah user_id tukang
+    const { tukang_id } = req.params; // Parameter adalah tukang_id dari profil_tukang
+
+    // Cari profil tukang berdasarkan ID
+    const profilTukang = await prisma.profil_tukang.findUnique({
+      where: { id: parseInt(tukang_id) },
+    });
+
+    if (!profilTukang) {
+      return sendResponse(res, 404, 'error', 'Tukang tidak ditemukan');
+    }
 
     const tukangRole = await prisma.roles.findFirst({ where: { name: 'tukang' } });
     const user = await prisma.users.findFirst({
       where: { 
-        id: parseInt(tukang_id),
+        id: profilTukang.user_id,
         id_role: tukangRole?.id || 3
       },
       include: {
@@ -323,12 +341,23 @@ exports.searchTukang = async (req, res) => {
     
     // Format data
      const formattedTukangs = tukangs.map(t => ({
-      id: t.profil_tukang?.id,
+      tukang_id: t.profil_tukang?.id,
       user_id: t.id,
       nama_lengkap: t.nama_lengkap,
       foto_profil: t.foto_profil,
+      no_telp: t.no_telp,
       kota: t.kota,
-      ...t.profil_tukang,
+      provinsi: t.provinsi,
+      profil_tukang: {
+        pengalaman_tahun: t.profil_tukang?.pengalaman_tahun,
+        tarif_per_jam: t.profil_tukang?.tarif_per_jam,
+        rata_rata_rating: t.profil_tukang?.rata_rata_rating,
+        total_rating: t.profil_tukang?.total_rating,
+        total_pekerjaan_selesai: t.profil_tukang?.total_pekerjaan_selesai,
+        status_ketersediaan: t.profil_tukang?.status_ketersediaan,
+        radius_layanan_km: t.profil_tukang?.radius_layanan_km,
+        bio: t.profil_tukang?.bio,
+      },
       kategori: t.kategori_tukang.map(kt => kt.kategori)
     }));
 

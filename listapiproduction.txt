@@ -291,20 +291,30 @@ JSON
 	"message": "Data tukang berhasil diambil",
 	"data": [
 		{
-			"id": 10,
+			"tukang_id": 10,
 			"user_id": 7,
 			"nama_lengkap": "Tukang A",
 			"foto_profil": "uploads/profiles/..jpg",
 			"no_telp": "08...",
 			"kota": "Jakarta",
-			"profil_tukang": { "pengalaman_tahun": 2, "tarif_per_jam": 60000, "rata_rata_rating": 4.5 },
+			"provinsi": "DKI Jakarta",
+			"profil_tukang": {
+				"pengalaman_tahun": 2,
+				"tarif_per_jam": 60000,
+				"rata_rata_rating": 4.5,
+				"total_rating": 25,
+				"total_pekerjaan_selesai": 15,
+				"status_ketersediaan": "tersedia",
+				"radius_layanan_km": 10,
+				"bio": "Tukang profesional dengan pengalaman 2 tahun"
+			},
 			"kategori": [ {"id":1,"nama":"Listrik"} ]
 		}
 	]
 }
 
 [GET] /api/client/tukang/:tukang_id
-Deskripsi: Ambil detail tukang (profil lengkap, kategori, ratings, rating_stats).
+Deskripsi: Ambil detail tukang (profil lengkap, kategori, ratings, rating_stats). Parameter `tukang_id` adalah ID dari tabel profil_tukang.
 Authentication: Protected (JWT required) — role: client
 Contoh Success Response (200 OK):
 JSON
@@ -325,7 +335,34 @@ JSON
 Deskripsi: Cari tukang berdasarkan keyword dan optional filter `kategori_id`, `kota`.
 Authentication: Protected (JWT required) — role: client
 Query params: `keyword` (required), `kategori_id`, `kota`, `limit`, `offset`
-Contoh Success Response (200 OK): sama struktur seperti browse tukang.
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Hasil pencarian tukang",
+	"data": [
+		{
+			"tukang_id": 10,
+			"user_id": 7,
+			"nama_lengkap": "Tukang A",
+			"foto_profil": "uploads/profiles/..jpg",
+			"no_telp": "08...",
+			"kota": "Jakarta",
+			"provinsi": "DKI Jakarta",
+			"profil_tukang": {
+				"pengalaman_tahun": 2,
+				"tarif_per_jam": 60000,
+				"rata_rata_rating": 4.5,
+				"total_rating": 25,
+				"total_pekerjaan_selesai": 15,
+				"status_ketersediaan": "tersedia",
+				"radius_layanan_km": 10,
+				"bio": "Tukang profesional dengan pengalaman 2 tahun"
+			},
+			"kategori": [ {"id":1,"nama":"Listrik"} ]
+		}
+	]
+}
 
 [POST] /api/client/booking
 Deskripsi: Membuat booking/transaksi baru.
@@ -800,7 +837,9 @@ curl -X GET "http://localhost:3000/api/client/tukang?kategori_id=1&kota=Jakarta&
 ### 13. Get Tukang Detail
 
 ```bash
-curl -X GET http://localhost:3000/api/client/tukang/7 \
+# Parameter adalah tukang_id dari profil_tukang
+# Gunakan tukang_id yang didapat dari endpoint browse tukang
+curl -X GET http://localhost:3000/api/client/tukang/6 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 

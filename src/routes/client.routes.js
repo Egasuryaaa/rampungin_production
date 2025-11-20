@@ -20,7 +20,7 @@ router.get('/categories', clientController.getCategories);
 // 9. BROWSE TUKANG
 router.get('/tukang', clientController.browseTukang);
 
-// 10. GET TUKANG DETAIL
+// 10. GET TUKANG DETAIL (parameter adalah tukang_id dari profil_tukang)
 router.get('/tukang/:tukang_id', clientController.getTukangDetail);
 
 // 11. SEARCH TUKANG
