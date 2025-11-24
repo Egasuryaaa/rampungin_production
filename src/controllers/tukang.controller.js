@@ -671,3 +671,138 @@ exports.getTukangStatistics = async (req, res) => {
     sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
   }
 };
+
+// 35. GET NOTIFICATIONS (Tukang)
+exports.getNotifications = async (req, res) => {
+  try {
+    const tukangId = req.user.id;
+    const notifications = [];
+
+    // 1. Ambil order baru (status: pending) - ini prioritas tinggi
+    const orderBaru = await prisma.transaksi.findMany({
+      where: {
+        tukang_id: tukangId,
+        status: 'pending',
+      },
+      include: {
+        users_transaksi_client_idTousers: {
+          select: {
+            nama_lengkap: true,
+          },
+        },
+        kategori: true,
+      },
+      orderBy: { created_at: 'desc' },
+      take: 10,
+    });
+
+    // Format notifikasi order baru
+    orderBaru.forEach(order => {
+      notifications.push({
+        type: 'order_baru',
+        title: '🔔 Order Baru!',
+        message: `Order baru "${order.judul_layanan}" dari ${order.users_transaksi_client_idTousers.nama_lengkap}. Segera respon!`,
+        timestamp: order.created_at,
+        data: {
+          transaksi_id: order.id,
+          nomor_pesanan: order.nomor_pesanan,
+          client_nama: order.users_transaksi_client_idTousers.nama_lengkap,
+          kategori: order.kategori.nama,
+          tanggal_jadwal: order.tanggal_jadwal,
+          waktu_jadwal: order.waktu_jadwal,
+          total_biaya: order.total_biaya,
+        },
+      });
+    });
+
+    // 2. Ambil transaksi dengan status update (selesai, dibatalkan)
+    const transaksiUpdate = await prisma.transaksi.findMany({
+      where: {
+        tukang_id: tukangId,
+        status: { in: ['selesai', 'dibatalkan'] },
+      },
+      include: {
+        users_transaksi_client_idTousers: {
+          select: {
+            nama_lengkap: true,
+          },
+        },
+      },
+      orderBy: { updated_at: 'desc' },
+      take: 15,
+    });
+
+    // Format notifikasi transaksi update
+    transaksiUpdate.forEach(trx => {
+      let title = '';
+      let message = '';
+      
+      if (trx.status === 'selesai') {
+        title = 'Pekerjaan Selesai';
+        message = `Pekerjaan "${trx.judul_layanan}" telah diselesaikan. ${trx.metode_pembayaran === 'poin' ? 'Poin telah ditransfer ke akun Anda.' : 'Menunggu konfirmasi pembayaran tunai.'}`;
+      } else if (trx.status === 'dibatalkan') {
+        title = 'Pesanan Dibatalkan';
+        message = `Pesanan "${trx.judul_layanan}" dibatalkan oleh ${trx.users_transaksi_client_idTousers.nama_lengkap}.${trx.alasan_pembatalan ? ` Alasan: ${trx.alasan_pembatalan}` : ''}`;
+      }
+
+      notifications.push({
+        type: 'transaksi_update',
+        title,
+        message,
+        timestamp: trx.updated_at,
+        data: {
+          transaksi_id: trx.id,
+          nomor_pesanan: trx.nomor_pesanan,
+          status: trx.status,
+          client_nama: trx.users_transaksi_client_idTousers.nama_lengkap,
+        },
+      });
+    });
+
+    // 3. Ambil notifikasi penarikan (status: selesai, ditolak)
+    const penarikanNotif = await prisma.penarikan.findMany({
+      where: {
+        tukang_id: tukangId,
+        status: { in: ['selesai', 'ditolak'] },
+      },
+      orderBy: { waktu_diproses: 'desc' },
+      take: 15,
+    });
+
+    // Format notifikasi penarikan
+    penarikanNotif.forEach(penarikan => {
+      let title = '';
+      let message = '';
+      
+      if (penarikan.status === 'selesai') {
+        title = 'Penarikan Berhasil';
+        message = `Penarikan sebesar Rp ${penarikan.jumlah_bersih.toLocaleString('id-ID')} telah berhasil ditransfer ke rekening ${penarikan.nama_bank} ${penarikan.nomor_rekening}.`;
+      } else if (penarikan.status === 'ditolak') {
+        title = 'Penarikan Ditolak';
+        message = `Penarikan sebesar Rp ${penarikan.jumlah.toLocaleString('id-ID')} ditolak dan saldo dikembalikan.${penarikan.alasan_penolakan ? ` Alasan: ${penarikan.alasan_penolakan}` : ''}`;
+      }
+
+      notifications.push({
+        type: 'penarikan',
+        title,
+        message,
+        timestamp: penarikan.waktu_diproses || penarikan.updated_at,
+        data: {
+          penarikan_id: penarikan.id,
+          jumlah: penarikan.jumlah,
+          jumlah_bersih: penarikan.jumlah_bersih,
+          status: penarikan.status,
+          nama_bank: penarikan.nama_bank,
+        },
+      });
+    });
+
+    // 4. Urutkan semua notifikasi berdasarkan timestamp (terbaru di atas)
+    notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    sendResponse(res, 200, 'success', 'Notifikasi berhasil diambil', notifications);
+  } catch (error) {
+    console.error('getNotifications error:', error);
+    sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
+  }
+};

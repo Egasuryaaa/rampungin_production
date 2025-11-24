@@ -24,6 +24,7 @@ DAFTAR ISI:
    - Booking & Transactions (5)
    - Top-up POIN (2)
    - Rating & Statistics (2)
+   - Notifications (1)
    
 3. TUKANG ENDPOINTS (15 endpoints)
    - Profile Management (3)
@@ -32,6 +33,7 @@ DAFTAR ISI:
    - Ratings & Reviews (1)
    - Withdrawal (2)
    - Statistics (1)
+   - Notifications (1)
 
 ================================================================================
 
@@ -477,6 +479,41 @@ JSON
 	}
 }
 
+[GET] /api/client/notification
+Deskripsi: Ambil notifikasi client (transaksi ditolak/selesai/dibatalkan, topup berhasil/ditolak).
+Authentication: Protected (JWT required) — role: client
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Notifikasi berhasil diambil",
+	"data": [
+		{
+			"type": "transaksi",
+			"title": "Pesanan Selesai",
+			"message": "Pesanan \"Pasang Lampu\" telah selesai. Jangan lupa berikan rating!",
+			"timestamp": "2025-11-20T15:00:00.000Z",
+			"data": {
+				"transaksi_id": 55,
+				"nomor_pesanan": "TRX-2025112000055",
+				"status": "selesai",
+				"tukang_nama": "Tukang A"
+			}
+		},
+		{
+			"type": "topup",
+			"title": "Top-up Berhasil",
+			"message": "Top-up sebesar Rp 100,000 telah berhasil diverifikasi. Saldo Anda telah ditambahkan.",
+			"timestamp": "2025-11-19T10:30:00.000Z",
+			"data": {
+				"topup_id": 10,
+				"jumlah": 100000,
+				"status": "berhasil"
+			}
+		}
+	]
+}
+
 ---
 
 ## tukang.routes.js
@@ -679,6 +716,58 @@ JSON
 		"rata_rata_rating": 4.6,
 		"transaksi": { "total": 20, "selesai": 12, "total_pendapatan": 300000 }
 	}
+}
+
+[GET] /api/tukang/notification
+Deskripsi: Ambil notifikasi tukang (order baru pending, transaksi selesai/dibatalkan, penarikan selesai/ditolak).
+Authentication: Protected (JWT required) — role: tukang
+Contoh Success Response (200 OK):
+JSON
+{
+	"status": "success",
+	"message": "Notifikasi berhasil diambil",
+	"data": [
+		{
+			"type": "order_baru",
+			"title": "🔔 Order Baru!",
+			"message": "Order baru \"Pasang Lampu\" dari Client A. Segera respon!",
+			"timestamp": "2025-11-20T14:00:00.000Z",
+			"data": {
+				"transaksi_id": 56,
+				"nomor_pesanan": "TRX-2025112000056",
+				"client_nama": "Client A",
+				"kategori": "Listrik",
+				"tanggal_jadwal": "2025-11-22",
+				"waktu_jadwal": "09:00:00",
+				"total_biaya": 150000
+			}
+		},
+		{
+			"type": "transaksi_update",
+			"title": "Pekerjaan Selesai",
+			"message": "Pekerjaan \"Renovasi Rumah\" telah diselesaikan. Poin telah ditransfer ke akun Anda.",
+			"timestamp": "2025-11-20T15:30:00.000Z",
+			"data": {
+				"transaksi_id": 55,
+				"nomor_pesanan": "TRX-2025112000055",
+				"status": "selesai",
+				"client_nama": "Client B"
+			}
+		},
+		{
+			"type": "penarikan",
+			"title": "Penarikan Berhasil",
+			"message": "Penarikan sebesar Rp 490,000 telah berhasil ditransfer ke rekening BCA 1234567890.",
+			"timestamp": "2025-11-19T16:00:00.000Z",
+			"data": {
+				"penarikan_id": 5,
+				"jumlah": 500000,
+				"jumlah_bersih": 490000,
+				"status": "selesai",
+				"nama_bank": "BCA"
+			}
+		}
+	]
 }
 
 ---

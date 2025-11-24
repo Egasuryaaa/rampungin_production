@@ -51,4 +51,7 @@ router.post('/rating', clientController.submitRating);
 // 19. GET CLIENT STATISTICS
 router.get('/statistics', clientController.getClientStatistics);
 
+// 20. GET NOTIFICATIONS
+router.get('/notification', clientController.getNotifications);
+
 module.exports = router;

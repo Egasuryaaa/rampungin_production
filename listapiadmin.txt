@@ -478,11 +478,139 @@ curl -X PUT http://localhost:3000/api/admin/verifications/tukang/25 \
 
 ## 💰 D. Keuangan: Top-Up (Client)
 
-### 10. GET Pending Topup
+### 10. GET Topup History (All Status)
 
 **Endpoint:** `GET /api/admin/finance/topup`
 
-**Description:** List topup dengan status `pending`.
+**Description:** List topup dengan semua status atau filter by status tertentu.
+
+**Query Parameters:**
+
+- `status` (optional): Filter by status (`pending`, `berhasil`, `ditolak`, `kadaluarsa`)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Data topup berhasil dimuat",
+  "data": {
+    "topup": [
+      {
+        "id": 42,
+        "user_id": 10,
+        "jumlah": "100000.00",
+        "metode_pembayaran": "qris",
+        "bukti_pembayaran": "uploads/topup/bukti-1700123456789.jpg",
+        "status": "berhasil",
+        "diverifikasi_oleh": 1,
+        "waktu_verifikasi": "2025-11-19T09:00:00.000Z",
+        "created_at": "2024-11-19T08:30:00.000Z",
+        "users_topup_user_idTousers": {
+          "id": 10,
+          "username": "client_andi",
+          "email": "andi@example.com",
+          "nama_lengkap": "Andi Pratama",
+          "no_telp": "08123456789",
+          "poin": 125000
+        },
+        "users_topup_diverifikasi_olehTousers": {
+          "id": 1,
+          "username": "admin",
+          "nama_lengkap": "Admin System"
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 50,
+      "total_pages": 3
+    }
+  }
+}
+```
+
+**cURL Examples:**
+
+```bash
+# Get all topup (all status)
+curl -X GET "http://localhost:3000/api/admin/finance/topup" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get only pending topup
+curl -X GET "http://localhost:3000/api/admin/finance/topup?status=pending" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get approved topup
+curl -X GET "http://localhost:3000/api/admin/finance/topup?status=berhasil" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 10b. GET Topup Detail
+
+**Endpoint:** `GET /api/admin/finance/topup/:id`
+
+**Description:** Detail lengkap topup termasuk data user.
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Detail topup berhasil dimuat",
+  "data": {
+    "id": 42,
+    "user_id": 10,
+    "jumlah": "100000.00",
+    "metode_pembayaran": "qris",
+    "bukti_pembayaran": "uploads/topup/bukti-1700123456789.jpg",
+    "status": "berhasil",
+    "diverifikasi_oleh": 1,
+    "waktu_verifikasi": "2025-11-19T09:00:00.000Z",
+    "alasan_penolakan": null,
+    "kadaluarsa_pada": "2025-11-20T08:30:00.000Z",
+    "created_at": "2024-11-19T08:30:00.000Z",
+    "updated_at": "2025-11-19T09:00:00.000Z",
+    "users_topup_user_idTousers": {
+      "id": 10,
+      "username": "client_andi",
+      "email": "andi@example.com",
+      "nama_lengkap": "Andi Pratama",
+      "no_telp": "08123456789",
+      "poin": 125000,
+      "foto_profil": "uploads/profiles/foto-123.jpg",
+      "alamat": "Jl. Merdeka No. 10",
+      "kota": "Jakarta",
+      "provinsi": "DKI Jakarta"
+    },
+    "users_topup_diverifikasi_olehTousers": {
+      "id": 1,
+      "username": "admin",
+      "nama_lengkap": "Admin System"
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET http://localhost:3000/api/admin/finance/topup/42 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 10c. GET Pending Topup (Backward Compatibility)
+
+**Endpoint:** `GET /api/admin/finance/topup?status=pending`
+
+**Description:** Sama dengan endpoint sebelumnya, gunakan query parameter `status=pending`.
 
 **Query Parameters:**
 
@@ -607,11 +735,153 @@ curl -X PUT http://localhost:3000/api/admin/finance/topup/42 \
 
 ## 💸 E. Keuangan: Withdrawal (Tukang)
 
-### 12. GET Pending Withdrawal
+### 12. GET Withdrawal History (All Status)
 
 **Endpoint:** `GET /api/admin/finance/withdrawal`
 
-**Description:** List withdrawal dengan status `pending`.
+**Description:** List withdrawal dengan semua status atau filter by status tertentu.
+
+**Query Parameters:**
+
+- `status` (optional): Filter by status (`pending`, `diproses`, `selesai`, `ditolak`)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Data withdrawal berhasil dimuat",
+  "data": {
+    "withdrawal": [
+      {
+        "id": 15,
+        "tukang_id": 20,
+        "jumlah": "500000.00",
+        "nama_bank": "BCA",
+        "nomor_rekening": "1234567890",
+        "nama_pemilik_rekening": "Budi Santoso",
+        "biaya_admin": "10000.00",
+        "jumlah_bersih": "490000.00",
+        "status": "selesai",
+        "diproses_oleh": 1,
+        "waktu_diproses": "2025-11-19T09:30:00.000Z",
+        "bukti_transfer": "uploads/withdrawal/bukti-123.jpg",
+        "created_at": "2024-11-19T07:00:00.000Z",
+        "users_penarikan_tukang_idTousers": {
+          "id": 20,
+          "username": "tukang_budi",
+          "email": "budi@example.com",
+          "nama_lengkap": "Budi Santoso",
+          "no_telp": "08567891234",
+          "poin": 250000
+        },
+        "users_penarikan_diproses_olehTousers": {
+          "id": 1,
+          "username": "admin",
+          "nama_lengkap": "Admin System"
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 30,
+      "total_pages": 2
+    }
+  }
+}
+```
+
+**cURL Examples:**
+
+```bash
+# Get all withdrawal (all status)
+curl -X GET "http://localhost:3000/api/admin/finance/withdrawal" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get only pending withdrawal
+curl -X GET "http://localhost:3000/api/admin/finance/withdrawal?status=pending" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get completed withdrawal
+curl -X GET "http://localhost:3000/api/admin/finance/withdrawal?status=selesai" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 12b. GET Withdrawal Detail
+
+**Endpoint:** `GET /api/admin/finance/withdrawal/:id`
+
+**Description:** Detail lengkap withdrawal termasuk data tukang dan info bank.
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Detail withdrawal berhasil dimuat",
+  "data": {
+    "id": 15,
+    "tukang_id": 20,
+    "jumlah": "500000.00",
+    "nama_bank": "BCA",
+    "nomor_rekening": "1234567890",
+    "nama_pemilik_rekening": "Budi Santoso",
+    "biaya_admin": "10000.00",
+    "jumlah_bersih": "490000.00",
+    "status": "selesai",
+    "diproses_oleh": 1,
+    "waktu_diproses": "2025-11-19T09:30:00.000Z",
+    "bukti_transfer": "uploads/withdrawal/bukti-123.jpg",
+    "alasan_penolakan": null,
+    "created_at": "2024-11-19T07:00:00.000Z",
+    "updated_at": "2025-11-19T09:30:00.000Z",
+    "users_penarikan_tukang_idTousers": {
+      "id": 20,
+      "username": "tukang_budi",
+      "email": "budi@example.com",
+      "nama_lengkap": "Budi Santoso",
+      "no_telp": "08567891234",
+      "poin": 250000,
+      "foto_profil": "uploads/profiles/foto-456.jpg",
+      "alamat": "Jl. Sudirman No. 45",
+      "kota": "Bandung",
+      "provinsi": "Jawa Barat",
+      "profil_tukang": {
+        "nama_bank": "BCA",
+        "nomor_rekening": "1234567890",
+        "nama_pemilik_rekening": "Budi Santoso",
+        "pengalaman_tahun": 5,
+        "tarif_per_jam": "75000.00"
+      }
+    },
+    "users_penarikan_diproses_olehTousers": {
+      "id": 1,
+      "username": "admin",
+      "nama_lengkap": "Admin System"
+    }
+  }
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET http://localhost:3000/api/admin/finance/withdrawal/15 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 12c. GET Pending Withdrawal (Backward Compatibility)
+
+**Endpoint:** `GET /api/admin/finance/withdrawal?status=pending`
+
+**Description:** Sama dengan endpoint sebelumnya, gunakan query parameter `status=pending`.
 
 **Query Parameters:**
 

@@ -463,7 +463,67 @@ exports.verifyTukang = async (req, res) => {
 // D. KEUANGAN: TOP-UP
 // ============================================
 
-// 10. GET PENDING TOPUP
+// 10. GET TOPUP HISTORY (All status with optional filter)
+exports.getTopupHistory = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Build filter - jika status ada, filter by status, jika tidak ambil semua
+    const where = {};
+    if (status) {
+      where.status = status;
+    }
+
+    const [topupList, total] = await Promise.all([
+      prisma.topup.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          users_topup_user_idTousers: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              nama_lengkap: true,
+              no_telp: true,
+              poin: true,
+            },
+          },
+          users_topup_diverifikasi_olehTousers: {
+            select: {
+              id: true,
+              username: true,
+              nama_lengkap: true,
+            },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.topup.count({ where }),
+    ]);
+
+    const data = {
+      topup: topupList,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        total_pages: Math.ceil(total / parseInt(limit)),
+      },
+    };
+
+    sendResponse(res, 200, 'success', 'Data topup berhasil dimuat', data);
+  } catch (error) {
+    console.error('getTopupHistory error:', error);
+    sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
+  }
+};
+
+// 10b. GET PENDING TOPUP (Backward compatibility)
 exports.getPendingTopup = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
@@ -505,6 +565,49 @@ exports.getPendingTopup = async (req, res) => {
     sendResponse(res, 200, 'success', 'Data topup pending berhasil dimuat', data);
   } catch (error) {
     console.error('getPendingTopup error:', error);
+    sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
+  }
+};
+
+// 10c. GET TOPUP DETAIL
+exports.getTopupDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const topup = await prisma.topup.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        users_topup_user_idTousers: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            nama_lengkap: true,
+            no_telp: true,
+            poin: true,
+            foto_profil: true,
+            alamat: true,
+            kota: true,
+            provinsi: true,
+          },
+        },
+        users_topup_diverifikasi_olehTousers: {
+          select: {
+            id: true,
+            username: true,
+            nama_lengkap: true,
+          },
+        },
+      },
+    });
+
+    if (!topup) {
+      return sendResponse(res, 404, 'error', 'Topup tidak ditemukan');
+    }
+
+    sendResponse(res, 200, 'success', 'Detail topup berhasil dimuat', topup);
+  } catch (error) {
+    console.error('getTopupDetail error:', error);
     sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
   }
 };
@@ -624,7 +727,67 @@ exports.verifyTopup = async (req, res) => {
 // E. KEUANGAN: WITHDRAWAL
 // ============================================
 
-// 12. GET PENDING WITHDRAWAL
+// 12. GET WITHDRAWAL HISTORY (All status with optional filter)
+exports.getWithdrawalHistory = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Build filter - jika status ada, filter by status, jika tidak ambil semua
+    const where = {};
+    if (status) {
+      where.status = status;
+    }
+
+    const [withdrawalList, total] = await Promise.all([
+      prisma.penarikan.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          users_penarikan_tukang_idTousers: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              nama_lengkap: true,
+              no_telp: true,
+              poin: true,
+            },
+          },
+          users_penarikan_diproses_olehTousers: {
+            select: {
+              id: true,
+              username: true,
+              nama_lengkap: true,
+            },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.penarikan.count({ where }),
+    ]);
+
+    const data = {
+      withdrawal: withdrawalList,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        total_pages: Math.ceil(total / parseInt(limit)),
+      },
+    };
+
+    sendResponse(res, 200, 'success', 'Data withdrawal berhasil dimuat', data);
+  } catch (error) {
+    console.error('getWithdrawalHistory error:', error);
+    sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
+  }
+};
+
+// 12b. GET PENDING WITHDRAWAL (Backward compatibility)
 exports.getPendingWithdrawal = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
@@ -666,6 +829,60 @@ exports.getPendingWithdrawal = async (req, res) => {
     sendResponse(res, 200, 'success', 'Data withdrawal pending berhasil dimuat', data);
   } catch (error) {
     console.error('getPendingWithdrawal error:', error);
+    sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
+  }
+};
+
+// 12c. GET WITHDRAWAL DETAIL
+exports.getWithdrawalDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const withdrawal = await prisma.penarikan.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        users_penarikan_tukang_idTousers: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            nama_lengkap: true,
+            no_telp: true,
+            poin: true,
+            foto_profil: true,
+            alamat: true,
+            kota: true,
+            provinsi: true,
+          },
+          include: {
+            profil_tukang: {
+              select: {
+                nama_bank: true,
+                nomor_rekening: true,
+                nama_pemilik_rekening: true,
+                pengalaman_tahun: true,
+                tarif_per_jam: true,
+              },
+            },
+          },
+        },
+        users_penarikan_diproses_olehTousers: {
+          select: {
+            id: true,
+            username: true,
+            nama_lengkap: true,
+          },
+        },
+      },
+    });
+
+    if (!withdrawal) {
+      return sendResponse(res, 404, 'error', 'Withdrawal tidak ditemukan');
+    }
+
+    sendResponse(res, 200, 'success', 'Detail withdrawal berhasil dimuat', withdrawal);
+  } catch (error) {
+    console.error('getWithdrawalDetail error:', error);
     sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
   }
 };

@@ -798,3 +798,102 @@ exports.getClientStatistics = async (req, res) => {
     sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
   }
 };
+
+// 20. GET NOTIFICATIONS (Client)
+exports.getNotifications = async (req, res) => {
+  try {
+    const clientId = req.user.id;
+    const notifications = [];
+
+    // 1. Ambil notifikasi dari transaksi (status: ditolak, selesai, dibatalkan)
+    const transaksiNotif = await prisma.transaksi.findMany({
+      where: {
+        client_id: clientId,
+        status: { in: ['ditolak', 'selesai', 'dibatalkan'] },
+      },
+      include: {
+        users_transaksi_tukang_idTousers: {
+          select: {
+            nama_lengkap: true,
+          },
+        },
+      },
+      orderBy: { updated_at: 'desc' },
+      take: 20,
+    });
+
+    // Format notifikasi transaksi
+    transaksiNotif.forEach(trx => {
+      let title = '';
+      let message = '';
+      
+      if (trx.status === 'ditolak') {
+        title = 'Pesanan Ditolak';
+        message = `Pesanan "${trx.judul_layanan}" ditolak oleh ${trx.users_transaksi_tukang_idTousers.nama_lengkap}.${trx.alasan_penolakan ? ` Alasan: ${trx.alasan_penolakan}` : ''}`;
+      } else if (trx.status === 'selesai') {
+        title = 'Pesanan Selesai';
+        message = `Pesanan "${trx.judul_layanan}" telah selesai. Jangan lupa berikan rating!`;
+      } else if (trx.status === 'dibatalkan') {
+        title = 'Pesanan Dibatalkan';
+        message = `Pesanan "${trx.judul_layanan}" telah dibatalkan.${trx.alasan_pembatalan ? ` Alasan: ${trx.alasan_pembatalan}` : ''}`;
+      }
+
+      notifications.push({
+        type: 'transaksi',
+        title,
+        message,
+        timestamp: trx.updated_at,
+        data: {
+          transaksi_id: trx.id,
+          nomor_pesanan: trx.nomor_pesanan,
+          status: trx.status,
+          tukang_nama: trx.users_transaksi_tukang_idTousers.nama_lengkap,
+        },
+      });
+    });
+
+    // 2. Ambil notifikasi dari topup (status: berhasil, ditolak)
+    const topupNotif = await prisma.topup.findMany({
+      where: {
+        user_id: clientId,
+        status: { in: ['berhasil', 'ditolak'] },
+      },
+      orderBy: { waktu_verifikasi: 'desc' },
+      take: 20,
+    });
+
+    // Format notifikasi topup
+    topupNotif.forEach(topup => {
+      let title = '';
+      let message = '';
+      
+      if (topup.status === 'berhasil') {
+        title = 'Top-up Berhasil';
+        message = `Top-up sebesar Rp ${topup.jumlah.toLocaleString('id-ID')} telah berhasil diverifikasi. Saldo Anda telah ditambahkan.`;
+      } else if (topup.status === 'ditolak') {
+        title = 'Top-up Ditolak';
+        message = `Top-up sebesar Rp ${topup.jumlah.toLocaleString('id-ID')} ditolak.${topup.alasan_penolakan ? ` Alasan: ${topup.alasan_penolakan}` : ''}`;
+      }
+
+      notifications.push({
+        type: 'topup',
+        title,
+        message,
+        timestamp: topup.waktu_verifikasi || topup.updated_at,
+        data: {
+          topup_id: topup.id,
+          jumlah: topup.jumlah,
+          status: topup.status,
+        },
+      });
+    });
+
+    // 3. Urutkan semua notifikasi berdasarkan timestamp (terbaru di atas)
+    notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    sendResponse(res, 200, 'success', 'Notifikasi berhasil diambil', notifications);
+  } catch (error) {
+    console.error('getNotifications error:', error);
+    sendResponse(res, 500, 'error', 'Internal Server Error', error.message);
+  }
+};

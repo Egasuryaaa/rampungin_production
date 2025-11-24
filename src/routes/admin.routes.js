@@ -40,14 +40,16 @@ router.put('/verifications/tukang/:id', adminController.verifyTukang);
 // D. KEUANGAN: TOP-UP
 // ============================================
 
-router.get('/finance/topup', adminController.getPendingTopup);
+router.get('/finance/topup', adminController.getTopupHistory);
+router.get('/finance/topup/:id', adminController.getTopupDetail);
 router.put('/finance/topup/:id', adminController.verifyTopup);
 
 // ============================================
 // E. KEUANGAN: WITHDRAWAL
 // ============================================
 
-router.get('/finance/withdrawal', adminController.getPendingWithdrawal);
+router.get('/finance/withdrawal', adminController.getWithdrawalHistory);
+router.get('/finance/withdrawal/:id', adminController.getWithdrawalDetail);
 router.put(
   '/finance/withdrawal/:id/confirm', 
   uploadWithdrawal.single('bukti_transfer'),

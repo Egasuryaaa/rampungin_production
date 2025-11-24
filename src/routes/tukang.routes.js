@@ -55,4 +55,7 @@ router.route('/withdrawal')
 // 34. GET TUKANG STATISTICS
 router.get('/statistics', tukangController.getTukangStatistics);
 
+// 35. GET NOTIFICATIONS
+router.get('/notification', tukangController.getNotifications);
+
 module.exports = router;
