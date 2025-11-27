@@ -697,7 +697,7 @@ exports.submitRating = async (req, res) => {
       });
 
       await tx.profil_tukang.update({
-        where: { user_id: transaction.tukang_id },
+        where: { id: transaction.tukang_id },
         data: {
           rata_rata_rating: stats._avg.rating,
           total_rating: stats._count.rating,
