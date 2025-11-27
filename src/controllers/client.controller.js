@@ -705,13 +705,44 @@ exports.submitRating = async (req, res) => {
         },
       });
 
-      return newRating;
+      // 6. TRANSFER POIN KE TUKANG jika metode poin
+      let poinDitransfer = 0;
+      if (transaction.metode_pembayaran === 'poin' && transaction.poin_terpotong) {
+        poinDitransfer = parseFloat(transaction.total_biaya);
+        
+        // Ambil user_id tukang dari profil_tukang
+        const profilTukang = await tx.profil_tukang.findUnique({
+          where: { id: transaction.tukang_id },
+          select: { user_id: true }
+        });
+        
+        if (profilTukang) {
+          await tx.users.update({
+            where: { id: profilTukang.user_id },
+            data: {
+              poin: {
+                increment: poinDitransfer
+              }
+            }
+          });
+        }
+      }
+
+      return {
+        ...newRating,
+        poinDitransfer
+      };
     });
 
-    sendResponse(res, 201, 'success', 'Rating berhasil diberikan', {
+    const responseMessage = result.poinDitransfer > 0 
+      ? `Rating berhasil diberikan. ${result.poinDitransfer} poin telah ditransfer ke tukang.`
+      : 'Rating berhasil diberikan';
+
+    sendResponse(res, 201, 'success', responseMessage, {
       rating_id: result.id,
       transaksi_id: result.transaksi_id,
       rating: result.rating,
+      poin_ditransfer: result.poinDitransfer || 0,
     });
 
   } catch (error) {

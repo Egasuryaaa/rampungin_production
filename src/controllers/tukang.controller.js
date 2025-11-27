@@ -404,20 +404,13 @@ exports.completeWork = async (req, res) => {
         },
       });
 
-      // 4. Transfer Poin ke Tukang jika metode poin
-      let poinDiterima = 0;
-      if (transaction.metode_pembayaran === 'poin') {
-        poinDiterima = parseFloat(transaction.total_biaya);
-        await tx.users.update({
-          where: { id: tukangId },
-          data: { poin: { increment: poinDiterima } },
-        });
-      }
+      // 4. POIN TIDAK DITRANSFER DI SINI
+      // Poin akan ditransfer SETELAH client memberikan rating
       
-      return { poinDiterima };
+      return { message: 'Pekerjaan selesai. Menunggu rating dari client.' };
     });
 
-    sendResponse(res, 200, 'success', 'Pekerjaan berhasil diselesaikan', result);
+    sendResponse(res, 200, 'success', 'Pekerjaan berhasil diselesaikan. Poin akan ditransfer setelah client memberikan rating.', result);
 
   } catch (error) {
     console.error('completeWork error:', error);
