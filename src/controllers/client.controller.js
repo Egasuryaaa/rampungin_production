@@ -678,24 +678,15 @@ exports.submitRating = async (req, res) => {
         throw new Error('Transaksi ini sudah diberi rating');
       }
 
-      // 4. Ambil user_id tukang dari profil_tukang (karena transaction.tukang_id = profil_tukang.id)
-      const profilTukang = await tx.profil_tukang.findUnique({
-        where: { id: transaction.tukang_id },
-        select: { user_id: true }
-      });
+      // 4. transaction.tukang_id SUDAH users.id (bukan profil_tukang.id)
+      const tukangUserId = transaction.tukang_id;
 
-      if (!profilTukang) {
-        throw new Error('Profil tukang tidak ditemukan');
-      }
-
-      const tukangUserId = profilTukang.user_id;
-
-      // 5. Buat rating (rating.tukang_id references users.id, bukan profil_tukang.id)
+      // 5. Buat rating (rating.tukang_id references users.id)
       const newRating = await tx.rating.create({
         data: {
           transaksi_id: transaction.id,
           client_id: clientId,
-          tukang_id: tukangUserId,  // Gunakan users.id
+          tukang_id: tukangUserId,
           rating: parseInt(rating),
           ulasan: ulasan,
         },
@@ -703,13 +694,14 @@ exports.submitRating = async (req, res) => {
 
       // 6. Update statistik rata-rata di profil tukang
       const stats = await tx.rating.aggregate({
-        where: { tukang_id: tukangUserId },  // Query by users.id
+        where: { tukang_id: tukangUserId },
         _avg: { rating: true },
         _count: { rating: true },
       });
 
+      // Ambil profil_tukang berdasarkan user_id
       await tx.profil_tukang.update({
-        where: { id: transaction.tukang_id },  // Update by profil_tukang.id
+        where: { user_id: tukangUserId },
         data: {
           rata_rata_rating: stats._avg.rating,
           total_rating: stats._count.rating,
@@ -723,7 +715,7 @@ exports.submitRating = async (req, res) => {
         poinDitransfer = parseFloat(transaction.total_biaya);
         
         await tx.users.update({
-          where: { id: tukangUserId },  // Transfer ke users.id
+          where: { id: tukangUserId },
           data: {
             poin: {
               increment: poinDitransfer
