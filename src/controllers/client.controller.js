@@ -678,26 +678,38 @@ exports.submitRating = async (req, res) => {
         throw new Error('Transaksi ini sudah diberi rating');
       }
 
-      // 4. Buat rating
+      // 4. Ambil user_id tukang dari profil_tukang (karena transaction.tukang_id = profil_tukang.id)
+      const profilTukang = await tx.profil_tukang.findUnique({
+        where: { id: transaction.tukang_id },
+        select: { user_id: true }
+      });
+
+      if (!profilTukang) {
+        throw new Error('Profil tukang tidak ditemukan');
+      }
+
+      const tukangUserId = profilTukang.user_id;
+
+      // 5. Buat rating (rating.tukang_id references users.id, bukan profil_tukang.id)
       const newRating = await tx.rating.create({
         data: {
           transaksi_id: transaction.id,
           client_id: clientId,
-          tukang_id: transaction.tukang_id,
+          tukang_id: tukangUserId,  // Gunakan users.id
           rating: parseInt(rating),
           ulasan: ulasan,
         },
       });
 
-      // 5. Update statistik rata-rata di profil tukang
+      // 6. Update statistik rata-rata di profil tukang
       const stats = await tx.rating.aggregate({
-        where: { tukang_id: transaction.tukang_id },
+        where: { tukang_id: tukangUserId },  // Query by users.id
         _avg: { rating: true },
         _count: { rating: true },
       });
 
       await tx.profil_tukang.update({
-        where: { id: transaction.tukang_id },
+        where: { id: transaction.tukang_id },  // Update by profil_tukang.id
         data: {
           rata_rata_rating: stats._avg.rating,
           total_rating: stats._count.rating,
@@ -705,27 +717,19 @@ exports.submitRating = async (req, res) => {
         },
       });
 
-      // 6. TRANSFER POIN KE TUKANG jika metode poin
+      // 7. TRANSFER POIN KE TUKANG jika metode poin
       let poinDitransfer = 0;
       if (transaction.metode_pembayaran === 'poin' && transaction.poin_terpotong) {
         poinDitransfer = parseFloat(transaction.total_biaya);
         
-        // Ambil user_id tukang dari profil_tukang
-        const profilTukang = await tx.profil_tukang.findUnique({
-          where: { id: transaction.tukang_id },
-          select: { user_id: true }
-        });
-        
-        if (profilTukang) {
-          await tx.users.update({
-            where: { id: profilTukang.user_id },
-            data: {
-              poin: {
-                increment: poinDitransfer
-              }
+        await tx.users.update({
+          where: { id: tukangUserId },  // Transfer ke users.id
+          data: {
+            poin: {
+              increment: poinDitransfer
             }
-          });
-        }
+          }
+        });
       }
 
       return {

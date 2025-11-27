@@ -97,6 +97,7 @@ JIKA TUKANG REJECT (Status: pending):
 #### Endpoint: `POST /api/client/topup`
 
 **Request:**
+
 ```
 Content-Type: multipart/form-data
 
@@ -105,6 +106,7 @@ bukti_pembayaran: [FILE]
 ```
 
 **Response (201):**
+
 ```json
 {
   "status": "success",
@@ -119,6 +121,7 @@ bukti_pembayaran: [FILE]
 ```
 
 **Backend Process:**
+
 ```javascript
 // File: client.controller.js - requestTopup()
 
@@ -136,6 +139,7 @@ bukti_pembayaran: [FILE]
 ```
 
 **Admin Verifikasi:**
+
 - Admin cek bukti pembayaran
 - Jika valid → Approve:
   - Update topup.status = "disetujui"
@@ -152,6 +156,7 @@ bukti_pembayaran: [FILE]
 #### Endpoint: `POST /api/client/booking`
 
 **Request:**
+
 ```json
 {
   "tukang_id": 7,
@@ -162,12 +167,13 @@ bukti_pembayaran: [FILE]
   "waktu_jadwal": "10:00",
   "harga_dasar": 150000,
   "biaya_tambahan": 0,
-  "metode_pembayaran": "poin",  // ⬅️ KUNCI: pilih poin
+  "metode_pembayaran": "poin", // ⬅️ KUNCI: pilih poin
   "catatan_client": "AC tidak dingin"
 }
 ```
 
 **Response (201):**
+
 ```json
 {
   "status": "success",
@@ -178,39 +184,40 @@ bukti_pembayaran: [FILE]
     "status": "pending",
     "total_biaya": 150000,
     "metode_pembayaran": "poin",
-    "poin_terpotong": true  // ⬅️ Flag bahwa poin sudah dipotong
+    "poin_terpotong": true // ⬅️ Flag bahwa poin sudah dipotong
   }
 }
 ```
 
 **Backend Process (Transaction):**
+
 ```javascript
 // File: client.controller.js - createBooking()
 
 await prisma.$transaction(async (tx) => {
   // STEP 1: Validasi tukang_id
   const profilTukang = await tx.profil_tukang.findUnique({
-    where: { id: tukangId }
+    where: { id: tukangId },
   });
-  if (!profilTukang) throw new Error('Tukang tidak ditemukan');
+  if (!profilTukang) throw new Error("Tukang tidak ditemukan");
 
   // STEP 2: Jika metode "poin" → CEK & POTONG SALDO
-  if (metode_pembayaran === 'poin') {
+  if (metode_pembayaran === "poin") {
     // 2a. Cek saldo client
     const client = await tx.users.findUnique({
       where: { id: clientId },
-      select: { poin: true }
+      select: { poin: true },
     });
 
     // 2b. Validasi saldo cukup
     if (client.poin < total_biaya) {
-      throw new Error('Saldo poin tidak mencukupi');
+      throw new Error("Saldo poin tidak mencukupi");
     }
 
     // 2c. POTONG POIN CLIENT ⬅️ PENTING!
     await tx.users.update({
       where: { id: clientId },
-      data: { poin: { decrement: total_biaya } }
+      data: { poin: { decrement: total_biaya } },
     });
   }
 
@@ -228,11 +235,11 @@ await prisma.$transaction(async (tx) => {
       harga_dasar: harga_dasar,
       biaya_tambahan: biaya_tambahan || 0,
       total_biaya: total_biaya,
-      metode_pembayaran: 'poin',
-      status: 'pending',
+      metode_pembayaran: "poin",
+      status: "pending",
       catatan_client: catatan_client,
-      poin_terpotong: true  // ⬅️ Flag untuk tracking
-    }
+      poin_terpotong: true, // ⬅️ Flag untuk tracking
+    },
   });
 
   return newTransaksi;
@@ -240,6 +247,7 @@ await prisma.$transaction(async (tx) => {
 ```
 
 **⚠️ Error jika Saldo Tidak Cukup:**
+
 ```json
 {
   "status": "error",
@@ -255,6 +263,7 @@ await prisma.$transaction(async (tx) => {
 #### Endpoint: `POST /api/client/cancel-transaction/:transaksi_id`
 
 **Request:**
+
 ```json
 {
   "alasan_pembatalan": "Tidak jadi butuh jasa"
@@ -262,39 +271,40 @@ await prisma.$transaction(async (tx) => {
 ```
 
 **Backend Process:**
+
 ```javascript
 // File: client.controller.js - cancelTransaction()
 
 await prisma.$transaction(async (tx) => {
   // 1. Get transaksi
   const transaction = await tx.transaksi.findFirst({
-    where: { id: transaksi_id, client_id: clientId }
+    where: { id: transaksi_id, client_id: clientId },
   });
 
   // 2. Cek status (hanya pending/diterima yang bisa cancel)
-  if (!['pending', 'diterima'].includes(transaction.status)) {
-    throw new Error('Transaksi tidak dapat dibatalkan');
+  if (!["pending", "diterima"].includes(transaction.status)) {
+    throw new Error("Transaksi tidak dapat dibatalkan");
   }
 
   // 3. Update status
   await tx.transaksi.update({
     where: { id: transaction.id },
     data: {
-      status: 'dibatalkan',
+      status: "dibatalkan",
       alasan_pembatalan: alasan_pembatalan,
       dibatalkan_oleh: clientId,
-      waktu_dibatalkan: new Date()
-    }
+      waktu_dibatalkan: new Date(),
+    },
   });
 
   // 4. KEMBALIKAN POIN jika poin_terpotong = true ⬅️ PENTING!
   let poinDikembalikan = 0;
   if (transaction.poin_terpotong) {
     poinDikembalikan = parseFloat(transaction.total_biaya);
-    
+
     await tx.users.update({
       where: { id: clientId },
-      data: { poin: { increment: poinDikembalikan } }
+      data: { poin: { increment: poinDikembalikan } },
     });
   }
 
@@ -303,6 +313,7 @@ await prisma.$transaction(async (tx) => {
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -322,6 +333,7 @@ await prisma.$transaction(async (tx) => {
 #### Endpoint: `GET /api/tukang/orders`
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -337,7 +349,7 @@ await prisma.$transaction(async (tx) => {
       "tanggal_jadwal": "2025-11-28",
       "waktu_jadwal": "10:00:00",
       "total_biaya": 150000,
-      "metode_pembayaran": "poin",  // ⬅️ Tukang tahu ini bayar poin
+      "metode_pembayaran": "poin", // ⬅️ Tukang tahu ini bayar poin
       "status": "pending",
       "poin_terpotong": true,
       "nama_client": "John Doe",
@@ -355,6 +367,7 @@ await prisma.$transaction(async (tx) => {
 #### Endpoint: `POST /api/tukang/orders/:transaksi_id/accept`
 
 **Backend Process:**
+
 ```javascript
 // File: tukang.controller.js - acceptOrder()
 
@@ -363,16 +376,17 @@ const updated = await prisma.transaksi.updateMany({
   where: {
     id: parseInt(transaksi_id),
     tukang_id: req.user.id,
-    status: 'pending'
+    status: "pending",
   },
   data: {
-    status: 'diterima',
-    waktu_diterima: new Date()
-  }
+    status: "diterima",
+    waktu_diterima: new Date(),
+  },
 });
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -387,18 +401,19 @@ const updated = await prisma.transaksi.updateMany({
 #### Endpoint: `POST /api/tukang/orders/:transaksi_id/start`
 
 **Backend Process:**
+
 ```javascript
 // Update status dari "diterima" → "dalam_proses"
 const updated = await prisma.transaksi.updateMany({
   where: {
     id: parseInt(transaksi_id),
     tukang_id: req.user.id,
-    status: 'diterima'
+    status: "diterima",
   },
   data: {
-    status: 'dalam_proses',
-    waktu_mulai: new Date()
-  }
+    status: "dalam_proses",
+    waktu_mulai: new Date(),
+  },
 });
 ```
 
@@ -409,6 +424,7 @@ const updated = await prisma.transaksi.updateMany({
 #### Endpoint: `POST /api/tukang/orders/:transaksi_id/complete`
 
 **Request:**
+
 ```json
 {
   "catatan_tukang": "AC sudah dingin kembali. Freon sudah diisi."
@@ -416,28 +432,29 @@ const updated = await prisma.transaksi.updateMany({
 ```
 
 **Backend Process (Transaction):**
+
 ```javascript
 // File: tukang.controller.js - completeWork()
 
 await prisma.$transaction(async (tx) => {
   // 1. Get transaksi
   const transaction = await tx.transaksi.findFirst({
-    where: { id: transaksi_id, tukang_id: tukangId }
+    where: { id: transaksi_id, tukang_id: tukangId },
   });
 
   // 2. Validasi status harus "dalam_proses"
-  if (transaction.status !== 'dalam_proses') {
-    throw new Error('Hanya pesanan dalam proses yang bisa diselesaikan');
+  if (transaction.status !== "dalam_proses") {
+    throw new Error("Hanya pesanan dalam proses yang bisa diselesaikan");
   }
 
   // 3. Update status transaksi
   await tx.transaksi.update({
     where: { id: transaction.id },
     data: {
-      status: 'selesai',
+      status: "selesai",
       catatan_tukang: catatan_tukang,
-      waktu_selesai: new Date()
-    }
+      waktu_selesai: new Date(),
+    },
   });
 
   // Poin TIDAK ditransfer di sini
@@ -446,6 +463,7 @@ await prisma.$transaction(async (tx) => {
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -454,11 +472,12 @@ await prisma.$transaction(async (tx) => {
 ```
 
 **✅ Yang Terjadi di Database:**
+
 ```sql
 -- Transaksi diupdate ke status selesai
-UPDATE transaksi 
-SET status = 'selesai', 
-    waktu_selesai = NOW() 
+UPDATE transaksi
+SET status = 'selesai',
+    waktu_selesai = NOW()
 WHERE id = 15;
 
 -- Poin BELUM ditransfer ke tukang
@@ -472,6 +491,7 @@ WHERE id = 15;
 #### Endpoint: `POST /api/client/rating`
 
 **Request:**
+
 ```json
 {
   "transaksi_id": 15,
@@ -481,18 +501,19 @@ WHERE id = 15;
 ```
 
 **Backend Process (Transaction):**
+
 ```javascript
 // File: client.controller.js - submitRating()
 
 await prisma.$transaction(async (tx) => {
   // 1. Get transaksi
   const transaction = await tx.transaksi.findFirst({
-    where: { id: transaksi_id, client_id: clientId }
+    where: { id: transaksi_id, client_id: clientId },
   });
 
   // 2. Validasi status harus "selesai"
-  if (transaction.status !== 'selesai') {
-    throw new Error('Hanya transaksi yang selesai yang bisa diberi rating');
+  if (transaction.status !== "selesai") {
+    throw new Error("Hanya transaksi yang selesai yang bisa diberi rating");
   }
 
   // 3. Buat rating
@@ -502,15 +523,15 @@ await prisma.$transaction(async (tx) => {
       client_id: clientId,
       tukang_id: transaction.tukang_id,
       rating: parseInt(rating),
-      ulasan: ulasan
-    }
+      ulasan: ulasan,
+    },
   });
 
   // 4. Update statistik tukang
   const stats = await tx.rating.aggregate({
     where: { tukang_id: transaction.tukang_id },
     _avg: { rating: true },
-    _count: { rating: true }
+    _count: { rating: true },
   });
 
   await tx.profil_tukang.update({
@@ -518,26 +539,26 @@ await prisma.$transaction(async (tx) => {
     data: {
       rata_rata_rating: stats._avg.rating,
       total_rating: stats._count.rating,
-      total_pekerjaan_selesai: { increment: 1 }
-    }
+      total_pekerjaan_selesai: { increment: 1 },
+    },
   });
 
   // 5. TRANSFER POIN KE TUKANG jika metode "poin" ⬅️ PENTING!
   let poinDitransfer = 0;
-  if (transaction.metode_pembayaran === 'poin' && transaction.poin_terpotong) {
+  if (transaction.metode_pembayaran === "poin" && transaction.poin_terpotong) {
     poinDitransfer = parseFloat(transaction.total_biaya);
-    
+
     // Ambil user_id tukang dari profil_tukang
     const profilTukang = await tx.profil_tukang.findUnique({
       where: { id: transaction.tukang_id },
-      select: { user_id: true }
+      select: { user_id: true },
     });
-    
+
     if (profilTukang) {
       // TRANSFER POIN
       await tx.users.update({
         where: { id: profilTukang.user_id },
-        data: { poin: { increment: poinDitransfer } }
+        data: { poin: { increment: poinDitransfer } },
       });
     }
   }
@@ -547,6 +568,7 @@ await prisma.$transaction(async (tx) => {
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -555,18 +577,19 @@ await prisma.$transaction(async (tx) => {
     "rating_id": 8,
     "transaksi_id": 15,
     "rating": 5,
-    "poin_ditransfer": 150000  // ⬅️ Tukang dapat 150,000 poin
+    "poin_ditransfer": 150000 // ⬅️ Tukang dapat 150,000 poin
   }
 }
 ```
 
 **✅ Yang Terjadi di Database:**
+
 ```sql
 -- Client (saldo tidak berubah, sudah dipotong saat booking)
 
 -- Tukang (dapat poin setelah rating)
-UPDATE users 
-SET poin = poin + 150000 
+UPDATE users
+SET poin = poin + 150000
 WHERE id = [tukang_user_id];
 
 -- Rating dibuat
@@ -574,7 +597,7 @@ INSERT INTO rating (transaksi_id, client_id, tukang_id, rating, ulasan)
 VALUES (15, 12, 7, 5, 'Sangat puas dengan hasilnya');
 
 -- Statistik tukang diupdate
-UPDATE profil_tukang 
+UPDATE profil_tukang
 SET rata_rata_rating = 4.8,
     total_rating = 10,
     total_pekerjaan_selesai = total_pekerjaan_selesai + 1
@@ -588,6 +611,7 @@ WHERE user_id = 7;
 #### Endpoint: `POST /api/tukang/withdrawal`
 
 **Request:**
+
 ```json
 {
   "jumlah": 150000,
@@ -598,23 +622,24 @@ WHERE user_id = 7;
 ```
 
 **Backend Process:**
+
 ```javascript
 // File: tukang.controller.js - requestWithdrawal()
 
 await prisma.$transaction(async (tx) => {
   // 1. Validasi minimum 50,000
   if (jumlah < 50000) {
-    throw new Error('Minimum penarikan adalah 50,000');
+    throw new Error("Minimum penarikan adalah 50,000");
   }
 
   // 2. Cek saldo tukang
   const tukang = await tx.users.findUnique({
     where: { id: tukangId },
-    select: { poin: true }
+    select: { poin: true },
   });
 
   if (tukang.poin < jumlah) {
-    throw new Error('Saldo poin tidak mencukupi');
+    throw new Error("Saldo poin tidak mencukupi");
   }
 
   // 3. Hitung biaya admin (2%, max 5,000)
@@ -626,7 +651,7 @@ await prisma.$transaction(async (tx) => {
   // 4. POTONG SALDO TUKANG ⬅️ LANGSUNG DIPOTONG!
   await tx.users.update({
     where: { id: tukangId },
-    data: { poin: { decrement: jumlah } }
+    data: { poin: { decrement: jumlah } },
   });
 
   // 5. Buat record withdrawal
@@ -639,8 +664,8 @@ await prisma.$transaction(async (tx) => {
       nama_bank: nama_bank,
       nomor_rekening: nomor_rekening,
       nama_pemilik_rekening: nama_pemilik_rekening,
-      status: 'pending'
-    }
+      status: "pending",
+    },
   });
 
   return withdrawal;
@@ -648,6 +673,7 @@ await prisma.$transaction(async (tx) => {
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -663,6 +689,7 @@ await prisma.$transaction(async (tx) => {
 ```
 
 **Admin Proses Withdrawal:**
+
 - Admin transfer Rp 147,000 ke rekening tukang
 - Update `penarikan.status = "selesai"`
 - Tukang dapat notifikasi
@@ -677,6 +704,7 @@ await prisma.$transaction(async (tx) => {
 #### Endpoint: `GET /api/client/profile`
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -695,11 +723,12 @@ await prisma.$transaction(async (tx) => {
 #### Endpoint: `GET /api/tukang/statistics`
 
 **Response:**
+
 ```json
 {
   "status": "success",
   "data": {
-    "saldo_poin": 150000,  // ⬅️ Saldo poin tukang saat ini
+    "saldo_poin": 150000, // ⬅️ Saldo poin tukang saat ini
     "total_pekerjaan_selesai": 10,
     "rata_rata_rating": 4.8,
     "transaksi": {
@@ -708,13 +737,13 @@ await prisma.$transaction(async (tx) => {
       "diterima": 1,
       "dalam_proses": 1,
       "selesai": 10,
-      "total_pendapatan": 1500000  // ⬅️ Total dari poin yang diterima
+      "total_pendapatan": 1500000 // ⬅️ Total dari poin yang diterima
     },
     "penarikan": {
       "total": 3,
       "pending": 1,
       "selesai": 2,
-      "total_ditarik": 300000  // ⬅️ Total poin yang sudah ditarik
+      "total_ditarik": 300000 // ⬅️ Total poin yang sudah ditarik
     }
   }
 }
@@ -790,27 +819,32 @@ BOOKING (POIN)
 ## ⚠️ IMPORTANT NOTES
 
 ### 1. **Poin Dipotong Saat Booking (Bukan Saat Selesai)**
+
 - ✅ Client poin langsung dipotong saat create booking
 - ✅ Ini untuk lock poin dan mencegah double spending
 - ✅ Flag `poin_terpotong = true` untuk tracking refund
 
 ### 2. **Poin Ditransfer Saat Client Submit Rating (Bukan Saat Complete)**
+
 - ✅ Tukang dapat poin HANYA setelah client memberikan rating
 - ❌ Tidak dapat poin saat complete work
 - ✅ Ini memastikan client puas dengan hasil pekerjaan
 - ✅ Memberikan leverage kepada client untuk quality control
 
 ### 3. **Refund Otomatis Jika Cancel/Reject**
+
 - ✅ Cek flag `poin_terpotong = true`
 - ✅ Jika true → Kembalikan poin ke client
 - ✅ Jika false (tunai) → Tidak ada refund poin
 
 ### 4. **Withdrawal Potong Langsung**
+
 - ✅ Saldo tukang langsung dipotong saat request
 - ✅ Jika ditolak admin → Poin dikembalikan
 - ✅ Biaya admin 2% (max 5,000)
 
 ### 5. **Database Transaction**
+
 - ✅ Semua operasi poin menggunakan `prisma.$transaction`
 - ✅ Ini memastikan atomicity (all or nothing)
 - ✅ Mencegah race condition dan data inconsistency
@@ -820,6 +854,7 @@ BOOKING (POIN)
 ## 🧪 TESTING SCENARIOS
 
 ### Test Case 1: Happy Path (Poin)
+
 ```
 1. Client topup 200,000 → saldo: 200,000
 2. Client booking 150,000 (poin) → saldo: 50,000
@@ -837,6 +872,7 @@ BOOKING (POIN)
 ```
 
 ### Test Case 2: Client Cancel (Refund)
+
 ```
 1. Client booking 150,000 (poin) → saldo: 50,000
 2. Status: "pending"
@@ -845,6 +881,7 @@ BOOKING (POIN)
 ```
 
 ### Test Case 3: Tukang Reject (Refund)
+
 ```
 1. Client booking 150,000 (poin) → saldo: 50,000
 2. Status: "pending"
@@ -853,6 +890,7 @@ BOOKING (POIN)
 ```
 
 ### Test Case 4: Insufficient Balance
+
 ```
 1. Client saldo: 50,000
 2. Client booking 150,000 (poin)
@@ -865,6 +903,7 @@ BOOKING (POIN)
 ## 📱 IMPLEMENTASI UI/UX SUGGESTION
 
 ### Client App:
+
 1. **Tampilkan saldo poin** di dashboard utama
 2. **Saat booking**: Tampilkan opsi metode pembayaran (Poin/Tunai)
 3. **Jika pilih Poin**: Validasi saldo cukup sebelum submit
@@ -873,6 +912,7 @@ BOOKING (POIN)
 6. **History transaksi**: Filter by metode_pembayaran
 
 ### Tukang App:
+
 1. **Tampilkan saldo poin** di dashboard utama
 2. **List orders**: Badge "Poin" vs "Tunai" untuk setiap order
 3. **Setelah complete**: Notifikasi "Anda menerima 150,000 poin"
@@ -884,18 +924,22 @@ BOOKING (POIN)
 ## 🔐 SECURITY CONSIDERATIONS
 
 1. **Validasi Saldo Selalu di Backend**
+
    - Jangan percaya frontend validation
    - Selalu cek saldo di database
 
 2. **Database Transaction**
+
    - Gunakan `$transaction` untuk semua operasi poin
    - Mencegah race condition
 
 3. **Audit Trail**
+
    - Log semua operasi poin (topup, potong, refund, transfer)
    - Simpan timestamp dan user_id
 
 4. **Rate Limiting**
+
    - Batasi request booking per user per hari
    - Mencegah spam atau abuse
 
